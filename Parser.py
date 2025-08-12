@@ -97,12 +97,9 @@ def printAst(node) -> str:
         op = "+" if node.op == TokenType.OP_PLUS else "*"
         return f"({printAst(node.left)} {op} {printAst(node.right)})"
 
-from Tokenizer import tokenize
-# tokens = tokenize("1 * 2 + 3 * 4 + 5 * 6")
-tokens = tokenize("1 + 2 * 4 + 3")
-# tokens = tokenize("1 + 2")
-parser = Parser(tokens)
-print(printAst(parser.ast))
+def parse(tokens: list[Token]):
+    parser = Parser(tokens)
+    return parser.ast
 
 
 
