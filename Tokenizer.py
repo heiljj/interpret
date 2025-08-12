@@ -20,34 +20,42 @@ class Token:
         self.value = value
         self.kind = kind
 
-
 class Tokenizer:
-    def __init__(self, text: str):
+    def __init__(self, tokenmap, text: str):
         self.text = "".join(text.split())
-        self.index = 0
         self.length = len(self.text)
-
+        self.index = 0
         self.tokens = []
+        self.tokenmap = tokenmap
 
+        self.charmap = {}
+        for token in tokenmap:
+            current = self.charmap
+
+            for letter in token:
+                if letter in current:
+                    current = current[letter]
+                else:
+                    current[letter] = {}
+                    current = current[letter]
+    
         self.parse()
     
     def next(self):
-        if not self.isNext():
-            return ""
-
+        char = self.text[self.index]
         self.index += 1
-        return self.text[self.index - 1]
-    
+        return char
+
     def previous(self) -> str:
         self.index -= 1
         return self.text[self.index]
     
-    def match(self, char: str) -> bool:
-        return self.next() == char
-    
     def isNext(self):
         return self.index < self.length
     
+    def peek(self):
+        return self.text[self.index]
+
     def parseNumber(self):
         value = ""
         nums = list(map(float.__str__, range(10)))
@@ -60,42 +68,33 @@ class Tokenizer:
             self.previous()
         return value
     
-    def parseString(self):
-        value = ""
-        
-        while (n := self.next()) != '"' and n != "":
-            value += n
-        
-        self.previous()
-
     def parse(self):
         while self.isNext():
-            match self.next():
-                case "(":
-                    self.tokens.append(Token(TokenType.PAR_LEFT))
-                case ")":
-                    self.tokens.append(Token(TokenType.PAR_RIGHT))
-                case "+":
-                    self.tokens.append(Token(TokenType.OP_PLUS))
-                case "-":
-                    self.tokens.append(Token(TokenType.OP_MINUS))
-                case "*":
-                    self.tokens.append(Token(TokenType.OP_MUL))
-                case "/":
-                    self.tokens.append(Token(TokenType.OP_DIV))
-                case '"':
-                    self.tokens.append(Token(TokenType.STRING, self.parseString()))
-                case i if i in map(float.__str__, range(10)):
+
+            c = self.peek()
+
+            if c in map(float.__str__, range(10)):
+                self.parseNumber()
+                continue
+
+
+            current = self.charmap
+            chars = ""
+
+            while self.isNext():
+                c = self.next()
+
+                if c in current:
+                    chars += c
+                    current = current[c]
+                else:
                     self.previous()
-                    self.tokens.append(Token(TokenType.NUM, self.parseNumber()))
-                case _:
-                    raise Exception("Unknown char")
+                    break
 
-def tokenize(chars: str) -> list[Token]:
-    tokenizer = Tokenizer(chars)
-    return tokenizer.tokens
+            if chars in self.tokenmap:
+                self.tokens.append(Token(self.tokenmap[chars]))
+            else:
+                if chars == "":
+                    break
 
-
-
-
-
+                raise Exception("Token not in map")
