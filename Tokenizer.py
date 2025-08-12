@@ -1,4 +1,5 @@
 from enum import Enum
+import string
 
 class TokenType(Enum):
     PAR_LEFT = 1
@@ -28,7 +29,8 @@ class TokenType(Enum):
 
     NUM = 21
     STR = 22
-    VARNAME = 23
+
+    IDENTIFIER = 23
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
@@ -128,6 +130,22 @@ class Tokenizer:
             s += c
         
         self.tokens.append(Token(TokenType.STR, s))
+
+    def parseIdentifier(self):
+        s = ""
+        while self.isNext():
+            c = self.next()
+
+            if c not in string.ascii_letters and c not in "123456789_":
+                self.previous()
+                break
+
+            s += c
+
+        if s[0] in "123456789":
+            raise Exception("Identifier cannot begin with a digit")
+
+        self.tokens.append(Token(TokenType.IDENTIFIER, s))
     
     def parse(self):
         while self.isNext():
@@ -156,12 +174,16 @@ class Tokenizer:
                     break
 
             if chars in self.tokenmap:
-                self.tokens.append(Token(self.tokenmap[chars]))
+                tokentype = self.tokenmap[chars]
+                self.tokens.append(Token(tokentype))
+
+                if tokentype == TokenType.DECL or tokentype == TokenType.FUNC:
+                    self.parseIdentifier()
             else:
                 if chars == "":
                     break
 
-                raise Exception("Token not in map")
+                # ensure that this is intended as a varname
 
 def tokenize(text: str) -> list[Token]:
     tokenizer = Tokenizer(text)
@@ -174,6 +196,8 @@ def printTokens(tokens: list[Token]):
             s += f"{t.value} "
         elif t.kind == TokenType.STR:
             s += f'"{t.value}"'
+        elif t.kind == TokenType.IDENTIFIER:
+            s += f'{t.value}'
         else:
             s += f"{reverse_tokenmap[t.kind]} "
     

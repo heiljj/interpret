@@ -10,16 +10,39 @@
 
 from Tokenizer import Token, TokenType, reverse_tokenmap
 
+class VariableDecl:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+    
+    def resolve(self, interpret):
+        return interpret.resolveVariableDecl(self)
+
+class VariableSet:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+    
+    def resolve(self, interpret):
+        return interpret.resolveVariableSet(self)
+
 class BinaryOp:
     def __init__(self, left, op, right):
         self.left = left
         self.op = op
         self.right = right
+    
+    def resolve(self, interpret):
+        return interpret.resolveBinaryOp(self)
 
 class Value:
     def __init__(self, type, value):
         self.type = type
         self.value = value
+    
+    def resolve(self, interpret):
+        return interpret.resolveValue(self)
+
 
 # outside of parser class so it can follow the same format as generated functions 
 def parseValue(self):
