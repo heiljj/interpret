@@ -28,6 +28,7 @@ class TokenType(Enum):
 
     NUM = 21
     STR = 22
+    VARNAME = 23
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
@@ -111,7 +112,22 @@ class Tokenizer:
             else:
                 value += n
         
-        return value
+        self.tokens.append(Token(TokenType.NUM, float(value)))
+    
+    def parseString(self):
+        s = ""
+        if self.next() != '"':
+            raise Exception("Expected start of string")
+        
+        while self.isNext():
+            c = self.next()
+
+            if c == '"':
+                break
+
+            s += c
+        
+        self.tokens.append(Token(TokenType.STR, s))
     
     def parse(self):
         while self.isNext():
@@ -119,8 +135,11 @@ class Tokenizer:
             c = self.peek()
 
             if c in map(float.__str__, range(10)):
-                self.tokens.append(Token(TokenType.NUM, self.parseNumber()))
+                self.parseNumber()
                 continue
+
+            if c == '"':
+                self.parseString()
 
 
             current = self.charmap
@@ -151,10 +170,15 @@ def tokenize(text: str) -> list[Token]:
 def printTokens(tokens: list[Token]):
     s = ""
     for t in tokens:
-        if t.kind == TokenType.NUM or t.kind == TokenType.STR:
+        if t.kind == TokenType.NUM:
             s += f"{t.value} "
+        elif t.kind == TokenType.STR:
+            s += f'"{t.value}"'
         else:
             s += f"{reverse_tokenmap[t.kind]} "
     
     print(s)
 
+# add vars to tokenizer
+# second passthrough to check for errors
+# start scope stuff

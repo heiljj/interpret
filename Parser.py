@@ -1,3 +1,7 @@
+# block       -> (stmt;);*
+# stmt        -> assign_stmt
+# assign_stmt -> 'var' [] = expr
+
 # expr       1-> or_expr ('or' or_exp)*
 # or_expr    2-> and_expr ('and' and_expr)*
 # and_expr   3-> pm_expr ('+' | '-' pm_expr)*
@@ -17,6 +21,17 @@ class Value:
         self.type = type
         self.value = value
 
+# outside of parser class so it can follow the same format as generated functions 
+def parseValue(self):
+    token = self.next()
+
+    match token.kind:
+        case TokenType.NUM:
+            return Value(TokenType.NUM, token.value)
+        case TokenType.STR:
+            return Value(TokenType.STR, token.value)
+        case _:
+            raise Exception("Token was not of kind value")
 class Parser:
     def __init__(self, tokens: list[Token]):
         self.tokens = tokens
@@ -26,10 +41,16 @@ class Parser:
         self.parsers = {
             2: self.defineBinaryOpFunction(2, TokenType.OR),
             3: self.defineBinaryOpFunction(3, TokenType.AND),
-            4: self.defineBinaryOpFunction(4, TokenType.OP_PLUS),
-            5: self.defineBinaryOpFunction(5, TokenType.OP_MINUS),
-            6: self.defineBinaryOpFunction(6, TokenType.OP_MUL),
-            7: self.defineBinaryOpFunction(7, TokenType.OP_DIV),
+            4: self.defineBinaryOpFunction(4, TokenType.COMP_EQ),
+            5: self.defineBinaryOpFunction(5, TokenType.COMP_GT),
+            6: self.defineBinaryOpFunction(6, TokenType.COMP_LT),
+            7: self.defineBinaryOpFunction(7, TokenType.COMP_GT_EQ),
+            8: self.defineBinaryOpFunction(8, TokenType.COMP_LT_EQ),
+            9: self.defineBinaryOpFunction(9, TokenType.OP_PLUS),
+            10: self.defineBinaryOpFunction(10, TokenType.OP_MINUS),
+            11: self.defineBinaryOpFunction(11, TokenType.OP_MUL),
+            12: self.defineBinaryOpFunction(12, TokenType.OP_DIV),
+            13: parseValue
         }
 
         self.ast = self.parsePrec(2)
@@ -55,10 +76,7 @@ class Parser:
         return self.tokens[self.index]
     
     def parsePrec(self, prec):
-        if prec == len(self.parsers) + 2:
-            return self.parseValue()
-        else:
-            return self.parsers[prec](self)
+        return self.parsers[prec](self)
     
     def defineBinaryOpFunction(self, prec, op):
         def parseBinaryOp(self):
@@ -77,21 +95,12 @@ class Parser:
 
         return parseBinaryOp
 
-    
-    def parseValue(self):
-        token = self.next()
-
-        match token.kind:
-            case TokenType.NUM:
-                return Value(TokenType.NUM, token.value)
-            case TokenType.STRING:
-                return Value(TokenType.STRING, token.value)
-            case _:
-                raise Exception("Token was not of kind value")
-
 
 def printAstHelper(node) -> str:
     if type(node) == Value:
+        if node.type == TokenType.STR:
+            return f'"{node.value}"'
+
         return node.value
     else:
         op = reverse_tokenmap[node.op]
