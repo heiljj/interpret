@@ -3,25 +3,58 @@ from enum import Enum
 class TokenType(Enum):
     PAR_LEFT = 1
     PAR_RIGHT = 2
+    BRAC_LEFT = 3
+    BRAC_RIGHT = 4
 
-    OP_PLUS = 3
-    OP_MINUS = 4
-    OP_MUL = 5
-    OP_DIV = 6
+    OP_PLUS = 5
+    OP_MINUS = 6
+    OP_MUL = 7
+    OP_DIV = 8
 
-    NUM = 7
-    STRING = 8
+    FUNC = 9
+    DECL_EQ = 10
+    DECL = 11
+    QUOTE = 12
+    SEMI = 13
 
-    CMP_OR = 9
-    CMP_AND = 10
+    COMP_EQ = 14
+    COMP_LT_EQ = 15
+    COMP_GT_EQ = 16
+    COMP_LT = 17
+    COMP_GT = 18
+
+    NUM = 19
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
         self.value = value
         self.kind = kind
 
+tokenmap = {
+    "(" : TokenType.PAR_LEFT,
+    ")" : TokenType.PAR_RIGHT,
+    "{" : TokenType.BRAC_LEFT,
+    "}" : TokenType.BRAC_RIGHT,
+
+    "+" : TokenType.OP_PLUS,
+    "-" : TokenType.OP_MINUS,
+    "*" : TokenType.OP_MUL,
+    "/" : TokenType.OP_DIV,
+
+    "fun" : TokenType.FUNC,
+    "=" : TokenType.DECL_EQ,
+    "var" : TokenType.DECL,
+    '"' : TokenType.QUOTE,
+    ";" : TokenType.SEMI,
+
+    "==" : TokenType.COMP_EQ,
+    "<=" : TokenType.COMP_LT_EQ,
+    ">=" : TokenType.COMP_GT_EQ,
+    "<" : TokenType.COMP_LT,
+    ">" : TokenType.COMP_GT
+}
 class Tokenizer:
-    def __init__(self, tokenmap, text: str):
+    def __init__(self, text: str, tokenmap=tokenmap):
         self.text = "".join(text.split())
         self.length = len(self.text)
         self.index = 0
@@ -74,7 +107,7 @@ class Tokenizer:
             c = self.peek()
 
             if c in map(float.__str__, range(10)):
-                self.parseNumber()
+                self.tokens.append(Token(TokenType.NUM, self.parseNumber()))
                 continue
 
 
@@ -98,3 +131,7 @@ class Tokenizer:
                     break
 
                 raise Exception("Token not in map")
+
+def tokenize(text: str) -> list[Token]:
+    tokenizer = Tokenizer(text)
+    return tokenizer.tokens
