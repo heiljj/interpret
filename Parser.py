@@ -24,12 +24,12 @@ class Parser:
         self.end = len(self.tokens)
     
         self.parsers = {
-            7: self.defineBinaryOpFunction(7, TokenType.CMP_OR),
-            6: self.defineBinaryOpFunction(6, TokenType.CMP_AND),
-            5: self.defineBinaryOpFunction(5, TokenType.OP_PLUS),
-            4: self.defineBinaryOpFunction(4, TokenType.OP_MINUS),
-            3: self.defineBinaryOpFunction(3, TokenType.OP_MUL),
-            2: self.defineBinaryOpFunction(2, TokenType.OP_DIV),
+            2: self.defineBinaryOpFunction(2, TokenType.CMP_OR),
+            3: self.defineBinaryOpFunction(3, TokenType.CMP_AND),
+            4: self.defineBinaryOpFunction(4, TokenType.OP_PLUS),
+            5: self.defineBinaryOpFunction(5, TokenType.OP_MINUS),
+            6: self.defineBinaryOpFunction(6, TokenType.OP_MUL),
+            7: self.defineBinaryOpFunction(7, TokenType.OP_DIV),
         }
 
         self.ast = self.parsePrec(2)
@@ -64,12 +64,14 @@ class Parser:
         def parseBinaryOp(self):
             left = self.parsePrec(prec + 1)
 
-            if self.isNext():
+            while self.isNext():
                 token = self.peek()
                 if token.kind == op:
                     self.match(op)
                     right = self.parsePrec(prec + 1)
-                    return BinaryOp(left, op, right)
+                    left = BinaryOp(left, op, right)
+                else: 
+                    return left
         
             return left
 
@@ -88,11 +90,19 @@ class Parser:
                 raise Exception("Token was not of kind value")
 
 
+def printAst(node) -> str:
+    if type(node) == Value:
+        return node.value
+    else:
+        op = "+" if node.op == TokenType.OP_PLUS else "*"
+        return f"({printAst(node.left)} {op} {printAst(node.right)})"
+
 from Tokenizer import tokenize
-tokens = tokenize("1 * 2 + 3 * 4")
+# tokens = tokenize("1 * 2 + 3 * 4 + 5 * 6")
+tokens = tokenize("1 + 2 * 4 + 3")
 # tokens = tokenize("1 + 2")
 parser = Parser(tokens)
-t=1
+print(printAst(parser.ast))
 
 
 
