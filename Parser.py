@@ -24,12 +24,12 @@ class Parser:
         self.end = len(self.tokens)
     
         self.parsers = {
-            2: self.defineBinaryOpFunction(2, TokenType.CMP_OR),
-            3: self.defineBinaryOpFunction(3, TokenType.CMP_AND),
-            4: self.defineBinaryOpFunction(4, TokenType.OP_PLUS),
-            5: self.defineBinaryOpFunction(5, TokenType.OP_MINUS),
-            6: self.defineBinaryOpFunction(6, TokenType.OP_MUL),
-            7: self.defineBinaryOpFunction(7, TokenType.OP_DIV),
+            7: self.defineBinaryOpFunction(7, TokenType.CMP_OR),
+            6: self.defineBinaryOpFunction(6, TokenType.CMP_AND),
+            5: self.defineBinaryOpFunction(5, TokenType.OP_PLUS),
+            4: self.defineBinaryOpFunction(4, TokenType.OP_MINUS),
+            3: self.defineBinaryOpFunction(3, TokenType.OP_MUL),
+            2: self.defineBinaryOpFunction(2, TokenType.OP_DIV),
         }
 
         self.ast = self.parsePrec(2)
@@ -52,30 +52,27 @@ class Parser:
         return self.index + 1 < self.end
     
     def peek(self):
-        return self.tokens[self.index + 1]
+        return self.tokens[self.index]
     
     def parsePrec(self, prec):
-        if prec == 4:
-            t=1
-        if prec == 8:
+        if prec == len(self.parsers) + 2:
             return self.parseValue()
         else:
             return self.parsers[prec](self)
     
     def defineBinaryOpFunction(self, prec, op):
         def parseBinaryOp(self):
+            left = self.parsePrec(prec + 1)
+
             if self.isNext():
                 token = self.peek()
-
                 if token.kind == op:
-                    left = self.parsePrec(prec + 1)
                     self.match(op)
-                    right = self.parsePrec(prec)
+                    right = self.parsePrec(prec + 1)
                     return BinaryOp(left, op, right)
-                else:
-                    return self.parsePrec(prec + 1)
-            else:
-                return self.parsePrec(prec + 1)
+        
+            return left
+
         return parseBinaryOp
 
     
@@ -92,7 +89,8 @@ class Parser:
 
 
 from Tokenizer import tokenize
-tokens = tokenize("1 + 2 * 3")
+tokens = tokenize("1 * 2 + 3 * 4")
+# tokens = tokenize("1 + 2")
 parser = Parser(tokens)
 t=1
 
