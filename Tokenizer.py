@@ -23,7 +23,11 @@ class TokenType(Enum):
     COMP_LT = 17
     COMP_GT = 18
 
-    NUM = 19
+    OR = 19
+    AND = 20
+
+    NUM = 21
+    STR = 22
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
@@ -51,8 +55,12 @@ tokenmap = {
     "<=" : TokenType.COMP_LT_EQ,
     ">=" : TokenType.COMP_GT_EQ,
     "<" : TokenType.COMP_LT,
-    ">" : TokenType.COMP_GT
+    ">" : TokenType.COMP_GT,
+    "or" : TokenType.OR,
+    "and" : TokenType.AND
 }
+
+reverse_tokenmap = dict(zip(tokenmap.values(), tokenmap.keys()))
 class Tokenizer:
     def __init__(self, text: str, tokenmap=tokenmap):
         self.text = "".join(text.split())
@@ -94,11 +102,15 @@ class Tokenizer:
         nums = list(map(float.__str__, range(10)))
         nums += "."
 
-        while (n := self.next()) in nums:
-            value += n
+        while self.isNext():
+            n = self.next()
+
+            if n not in nums:
+                self.previous()
+                break
+            else:
+                value += n
         
-        if n != "":
-            self.previous()
         return value
     
     def parse(self):
@@ -135,3 +147,14 @@ class Tokenizer:
 def tokenize(text: str) -> list[Token]:
     tokenizer = Tokenizer(text)
     return tokenizer.tokens
+
+def printTokens(tokens: list[Token]):
+    s = ""
+    for t in tokens:
+        if t.kind == TokenType.NUM or t.kind == TokenType.STR:
+            s += f"{t.value} "
+        else:
+            s += f"{reverse_tokenmap[t.kind]} "
+    
+    print(s)
+
