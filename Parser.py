@@ -4,7 +4,7 @@
 # pm_expr    4-> md_expr ('*' | '/' md_expr)*
 # md_expr    5-> String | Num
 
-from Tokenizer import Token, TokenType
+from Tokenizer import Token, TokenType, reverse_tokenmap
 
 class BinaryOp:
     def __init__(self, left, op, right):
@@ -24,8 +24,8 @@ class Parser:
         self.end = len(self.tokens)
     
         self.parsers = {
-            2: self.defineBinaryOpFunction(2, TokenType.CMP_OR),
-            3: self.defineBinaryOpFunction(3, TokenType.CMP_AND),
+            2: self.defineBinaryOpFunction(2, TokenType.OR),
+            3: self.defineBinaryOpFunction(3, TokenType.AND),
             4: self.defineBinaryOpFunction(4, TokenType.OP_PLUS),
             5: self.defineBinaryOpFunction(5, TokenType.OP_MINUS),
             6: self.defineBinaryOpFunction(6, TokenType.OP_MUL),
@@ -90,12 +90,15 @@ class Parser:
                 raise Exception("Token was not of kind value")
 
 
-def printAst(node) -> str:
+def printAstHelper(node) -> str:
     if type(node) == Value:
         return node.value
     else:
-        op = "+" if node.op == TokenType.OP_PLUS else "*"
-        return f"({printAst(node.left)} {op} {printAst(node.right)})"
+        op = reverse_tokenmap[node.op]
+        return f"({printAstHelper(node.left)} {op} {printAstHelper(node.right)})"
+
+def printAst(node):
+    print(printAstHelper(node))
 
 def parse(tokens: list[Token]):
     parser = Parser(tokens)
