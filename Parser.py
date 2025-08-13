@@ -54,6 +54,13 @@ class VariableSet(Node):
     def resolve(self, interpret):
         return interpret.resolveVariableSet(self)
 
+class VariableGet(Node):
+    def __init__(self, name):
+        self.name = name
+    
+    def resolve(self, interpret):
+        return interpret.resolveVariableGet(self)
+
 class BinaryOp(Node):
     def __init__(self, left, op, right):
         self.left = left
@@ -81,6 +88,8 @@ def parseValue(self):
             return Value(TokenType.NUM, token.value)
         case TokenType.STR:
             return Value(TokenType.STR, token.value)
+        case TokenType.IDENTIFIER:
+            return VariableGet(token.value)
         case _:
             raise Exception("Token was not of kind value")
 
@@ -149,14 +158,31 @@ def generateParseVarDecl(prec):
                 
             return VariableDecl(identifier.value)
         
-        self.parsePrec(prec + 1)
+        return self.parsePrec(prec + 1)
 
     return parseVarDecl
 
 def generateParseVarSet(prec):
     #TODO
     def parseVarSet(self):
-        return self.parsePrec(prec+1)
+        if not self.isNext():
+            return
+        
+        token = self.peek()
+        if token.kind != TokenType.IDENTIFIER:
+            return self.parsePrec(prec + 1)
+        
+        token = self.next()
+
+        if not self.isNext() or self.peek().kind != TokenType.DECL_EQ:
+            self.previous()
+            return self.parsePrec(prec + 1)
+        
+        self.match(TokenType.DECL_EQ)
+
+        expr = self.parsePrec(prec + 1)
+        return VariableSet(token.value, expr)
+            
     return parseVarSet
 
 class Parser:
@@ -201,6 +227,9 @@ class Parser:
         self.index += 1
         return token
     
+    def previous(self):
+        self.index -= 1
+    
     def isNext(self):
         return self.index + 1 < self.end
     
@@ -227,6 +256,8 @@ def printAstHelper(node) -> str:
         return f"var {node.name}"
     elif type(node) == VariableSet:
         return f"{node.name} = {printAstHelper(node.expr)}"
+    elif type(node) == VariableGet:
+        return f"{node.name} "
     else:
         op = reverse_tokenmap[node.op]
         return f"({printAstHelper(node.left)} {op} {printAstHelper(node.right)})"
