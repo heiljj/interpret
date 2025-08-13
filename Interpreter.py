@@ -9,6 +9,7 @@ binops = {
     TokenType.OP_DIV : lambda x, y : x / y,
 
     TokenType.COMP_EQ : lambda x, y : x == y,
+    TokenType.COMP_NEQ : lambda x, y : x != y,
     TokenType.COMP_LT_EQ : lambda x, y : x <= y,
     TokenType.COMP_GT_EQ : lambda x, y : x >= y,
     TokenType.COMP_LT : lambda x, y : x < y,
@@ -26,8 +27,10 @@ class Interpreter:
         self.globals = {}
         self.locals = []
         self.scope = 0
+        self.debuginfo = None
 
         self.res = ast.resolve(self)
+
 
     
     def beginScope(self):
@@ -104,4 +107,12 @@ class Interpreter:
     def resolveVariableSet(self, varset):
         value = varset.value.resolve(self)
         self.set(varset.name, value)
+    
+    def resolveStatements(self, statements):
+        for s in statements.statements:
+            s.resolve(self)
+    
+    def resolveDebug(self, debug):
+        value = debug.expr.resolve(self)
+        self.debuginfo = value
     

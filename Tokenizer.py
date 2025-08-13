@@ -19,18 +19,21 @@ class TokenType(Enum):
     SEMI = 13
 
     COMP_EQ = 14
-    COMP_LT_EQ = 15
-    COMP_GT_EQ = 16
-    COMP_LT = 17
-    COMP_GT = 18
+    COMP_NEQ = 15
+    COMP_LT_EQ = 16
+    COMP_GT_EQ = 17
+    COMP_LT = 18
+    COMP_GT = 19
 
-    OR = 19
-    AND = 20
+    OR = 20
+    AND = 21
 
-    NUM = 21
-    STR = 22
+    NUM = 22
+    STR = 23
 
-    IDENTIFIER = 23
+    IDENTIFIER = 24
+
+    DEBUG = 25
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
@@ -55,12 +58,15 @@ tokenmap = {
     ";" : TokenType.SEMI,
 
     "==" : TokenType.COMP_EQ,
+    "!=" : TokenType.COMP_NEQ,
     "<=" : TokenType.COMP_LT_EQ,
     ">=" : TokenType.COMP_GT_EQ,
     "<" : TokenType.COMP_LT,
     ">" : TokenType.COMP_GT,
     "or" : TokenType.OR,
-    "and" : TokenType.AND
+    "and" : TokenType.AND,
+
+    "DEBUG" : TokenType.DEBUG
 }
 
 reverse_tokenmap = dict(zip(tokenmap.values(), tokenmap.keys()))
@@ -190,6 +196,7 @@ def tokenize(text: str) -> list[Token]:
     return tokenizer.tokens
 
 def printTokens(tokens: list[Token]):
+    print("tokens:")
     s = ""
     for t in tokens:
         if t.kind == TokenType.NUM:
