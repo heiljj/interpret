@@ -72,7 +72,7 @@ tokenmap = {
 reverse_tokenmap = dict(zip(tokenmap.values(), tokenmap.keys()))
 class Tokenizer:
     def __init__(self, text: str, tokenmap=tokenmap):
-        self.text = "".join(text.split())
+        self.text = "".join(text.splitlines())
         self.length = len(self.text)
         self.index = 0
         self.tokens = []
@@ -164,6 +164,10 @@ class Tokenizer:
 
             if c == '"':
                 self.parseString()
+            
+            if c == " ":
+                self.next()
+                continue
 
 
             current = self.charmap
@@ -184,12 +188,23 @@ class Tokenizer:
                 self.tokens.append(Token(tokentype))
 
                 if tokentype == TokenType.DECL or tokentype == TokenType.FUNC:
+                    if self.next() != " ":
+                        raise Exception("delc/func parsed but no space after?")
                     self.parseIdentifier()
             else:
+
+                while self.isNext():
+                    c = self.peek()
+
+                    if c == " " or c in "({!=;":
+                        break
+
+                    chars += self.next()
+
                 if chars == "":
                     break
 
-                # ensure that this is intended as a varname
+                self.tokens.append(Token(TokenType.IDENTIFIER, chars))
 
 def tokenize(text: str) -> list[Token]:
     tokenizer = Tokenizer(text)
@@ -204,7 +219,7 @@ def printTokens(tokens: list[Token]):
         elif t.kind == TokenType.STR:
             s += f'"{t.value}"'
         elif t.kind == TokenType.IDENTIFIER:
-            s += f'{t.value}'
+            s += f'{t.value} '
         else:
             s += f"{reverse_tokenmap[t.kind]} "
     

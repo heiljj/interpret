@@ -108,6 +108,11 @@ class Interpreter:
         value = varset.value.resolve(self)
         self.set(varset.name, value)
     
+    def resolveVariableDeclAndSet(self, vardeclset):
+        self.decl(vardeclset.name)
+        value = vardeclset.expr.resolve(self)
+        self.set(vardeclset.name, value)
+    
     def resolveStatements(self, statements):
         for s in statements.statements:
             s.resolve(self)
