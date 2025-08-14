@@ -309,6 +309,10 @@ def generateParseFunctionCall(prec, expression_prec):
         
         identifier = self.next()
 
+        if not self.isNext():
+            self.previous()
+            return self.parsePrec(prec + 1)
+
         if self.peek().kind != TokenType.PAR_LEFT:
             self.previous()
             return self.parsePrec(prec + 1)
@@ -413,7 +417,7 @@ class Parser:
         self.index -= 1
     
     def isNext(self):
-        return self.index + 1 < self.end
+        return self.index < self.end
     
     def peek(self):
         return self.tokens[self.index]
@@ -450,6 +454,8 @@ def printAstHelper(node) -> str:
         return node
     elif type(node) == Return:
         return f"return {printAst(node.expr)}"
+    elif node == None:
+        print("none object in ast")
     else:
         op = reverse_tokenmap[node.op]
         return f"({printAstHelper(node.left)} {op} {printAstHelper(node.right)})" 
