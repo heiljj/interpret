@@ -3,6 +3,68 @@ from Parser import parse
 from Interpreter import Interpreter
 
 #TODO remove semis
+
+def test_expr1():
+    buildtest("DEBUG true", True)
+
+def test_expr2():
+    buildtest("DEBUG false", False)
+
+def test_expr3():
+    buildtest("DEBUG false and true", False)
+
+def test_expr4():
+    buildtest("DEBUG false or true", True)
+
+def test_expr5():
+    buildtest("DEBUG 1 + 2", 3)
+
+def test_expr6():
+    buildtest("DEBUG 1 + 2 * 3", 7)
+
+def test_expr7():
+    buildtest("DEBUG 1 * 2 + 3", 5)
+
+
+def test_shadow1():
+    buildtest("var a = 1; {a = 2;} DEBUG a", 2)
+
+def test_shadow2():
+    buildtest("var a = 1; {var a = 2;} DEBUG a", 1)
+
+def test_shadow3():
+    buildtest("fun test() {var a = 2;} var a = 1; test() DEBUG a", 1)
+
+def test_fn1():
+    buildtest("fun test(a) {return a;} DEBUG test(1)", 1)
+
+def test_fn2():
+    buildtest("fun test(a, b) {return a + b;} DEBUG test(1, 2)", 3)
+
+def test_fn3():
+    buildtest("fun test(a) {return a;} DEBUG test(1) + test(2)", 3)
+
+
+def test_if1():
+    buildtest("if (true) {DEBUG 1}", 1)
+
+def test_if2():
+    buildtest("if (false) {DEBUG 1}", None)
+
+def test_if3():
+    buildtest("if (true) {DEBUG 1} else {DEBUG 2}", 1)
+
+def test_if4():
+    buildtest("if (false) {DEBUG 1} else {DEBUG 2}", 2)
+
+def test_if5():
+    buildtest("if (1 > 0) {DEBUG 1} else {DEBUG 2}", 1)
+
+def test_if6():
+    buildtest("fun test() {return true;} if (test()) {DEBUG 1} else {DEBUG 2}", 1)
+
+
+
 def test1():
     buildtest("DEBUG 1 + 2 + 3", 6)
 
