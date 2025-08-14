@@ -166,7 +166,8 @@ class Interpreter:
         if cond:
             return ifblock.if_expr.resolve(self)
         else:
-            return ifblock.else_expr.resolve(self)
+            if ifblock.else_expr != None:
+                return ifblock.else_expr.resolve(self)
 
 
 

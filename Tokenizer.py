@@ -220,10 +220,11 @@ class Tokenizer:
                 
                 if chars == "true":
                     self.tokens.append(Token(TokenType.BOOL, True))
-                    break
+                    continue 
 
                 if chars == "false":
                     self.tokens.append(Token(TokenType.BOOL, False))
+                    continue
 
                 self.tokens.append(Token(TokenType.IDENTIFIER, chars))
 

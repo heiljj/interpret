@@ -345,9 +345,36 @@ def generateParseReturn(prec, expression_prec):
     
     return parseReturn
 
-def generateParseIf(prec):
+def generateParseIf(prec, block_prec, expr_prec):
     def parseIf(self):
-        pass
+        if not self.isNext():
+            return
+        
+        token = self.peek()
+
+        if token.kind != TokenType.IF:
+            return self.parsePrec(prec + 1)
+        
+        self.match(TokenType.IF)
+        self.match(TokenType.PAR_LEFT)
+
+        cond = self.parsePrec(expr_prec)
+
+        self.match(TokenType.PAR_RIGHT)
+
+        if_expr = self.parsePrec(block_prec)
+
+        if not self.isNext():
+            return If(cond, if_expr, None)
+        
+        self.match(TokenType.ELSE)
+        
+        else_expr = self.parsePrec(block_prec)
+
+        return If(cond, if_expr, else_expr)
+    
+    return parseIf
+
 
 # statements -> (function | assignment | decl | block | statement)*
 
@@ -374,27 +401,27 @@ class Parser:
     
         self.parsers = [
             generateParseStatements(0),
-            generateParseFunctionDefinition(1, 2),
-            # if here
-            generateParseBlock(2),
-            generateParseDebug(3),
-            generateParseVarDecl(4),
-            generateParseVarSet(5),
-            generateParseReturn(6, 7),
-            defineBinaryOpFunction(7, TokenType.OR),
-            defineBinaryOpFunction(8, TokenType.AND),
-            defineBinaryOpFunction(9, TokenType.COMP_EQ),
-            defineBinaryOpFunction(10, TokenType.COMP_NEQ),
-            defineBinaryOpFunction(11, TokenType.COMP_GT),
-            defineBinaryOpFunction(12, TokenType.COMP_LT),
-            defineBinaryOpFunction(13, TokenType.COMP_GT_EQ),
-            defineBinaryOpFunction(14, TokenType.COMP_LT_EQ),
-            defineBinaryOpFunction(15, TokenType.OP_PLUS),
-            defineBinaryOpFunction(16, TokenType.OP_MINUS),
-            defineBinaryOpFunction(17, TokenType.OP_MUL),
-            defineBinaryOpFunction(18, TokenType.OP_DIV),
-            generateParseFunctionCall(19, 6),
-            generateParseValue(7)
+            generateParseFunctionDefinition(1, 3),
+            generateParseIf(2, 3, 8),
+            generateParseBlock(3),
+            generateParseDebug(4),
+            generateParseVarDecl(5),
+            generateParseVarSet(6),
+            generateParseReturn(7, 8),
+            defineBinaryOpFunction(8, TokenType.OR),
+            defineBinaryOpFunction(9, TokenType.AND),
+            defineBinaryOpFunction(10, TokenType.COMP_EQ),
+            defineBinaryOpFunction(11, TokenType.COMP_NEQ),
+            defineBinaryOpFunction(12, TokenType.COMP_GT),
+            defineBinaryOpFunction(13, TokenType.COMP_LT),
+            defineBinaryOpFunction(14, TokenType.COMP_GT_EQ),
+            defineBinaryOpFunction(15, TokenType.COMP_LT_EQ),
+            defineBinaryOpFunction(16, TokenType.OP_PLUS),
+            defineBinaryOpFunction(17, TokenType.OP_MINUS),
+            defineBinaryOpFunction(18, TokenType.OP_MUL),
+            defineBinaryOpFunction(19, TokenType.OP_DIV),
+            generateParseFunctionCall(20, 8),
+            generateParseValue(8)
         ]
 
         self.ast = self.parsePrec(0)
@@ -456,6 +483,11 @@ def printAstHelper(node) -> str:
         return f"return {printAst(node.expr)}"
     elif node == None:
         print("none object in ast")
+    elif type(node) == If:
+        if node.else_expr == None:
+            return f"if ({node.cond})"
+        else:
+            return f"if ({printAstHelper(node.cond)}) {printAstHelper(node.if_expr)} else {printAstHelper(node.else_expr)}"
     else:
         op = reverse_tokenmap[node.op]
         return f"({printAstHelper(node.left)} {op} {printAstHelper(node.right)})" 
