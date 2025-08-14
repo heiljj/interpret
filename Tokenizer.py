@@ -210,7 +210,7 @@ class Tokenizer:
                 while self.isNext():
                     c = self.peek()
 
-                    if c == " " or c in "({!=;}),":
+                    if c == " " or c in "({!=;})+-/*,":
                         break
 
                     chars += self.next()

@@ -1,6 +1,11 @@
 from Tokenizer import TokenType
 from Parser import Return
 
+class ReturnValue(Exception):
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+    
 
 binops = {
     TokenType.OP_PLUS : lambda x, y : x + y,
@@ -17,7 +22,6 @@ binops = {
 
     TokenType.OR : lambda x, y : x or y,
     TokenType.AND : lambda x, y : x and y
-
 }
 
 class Interpreter:
@@ -30,8 +34,6 @@ class Interpreter:
         self.debuginfo = None
 
         self.res = ast.resolve(self)
-
-
     
     def beginScope(self):
         self.scope += 1
@@ -86,7 +88,6 @@ class Interpreter:
             raise Exception("Variable does not exist")
         
         return self.globals[var]
-        
 
     def resolveValue(self, value):
         return value.value
@@ -121,6 +122,7 @@ class Interpreter:
             value = s.resolve(self)
 
             if type(s) == Return:
+
                 return value
     
     def resolveDebug(self, debug):
@@ -148,17 +150,28 @@ class Interpreter:
 
         for param, arg in zip(func.args, call.args):
             value = arg.resolve(self)
+
+            if value == 1 or value == 0:
+                t=1
             self.decl(param)
             self.set(param, value)
-        
-        value = func.block.resolve(self)
+
+        scope = self.scope
+
+        try:
+            value = func.block.resolve(self)
+        except ReturnValue as v:
+
+            while scope != self.scope:
+                self.endScope()
+            
+            self.endScope()
+            return v.value
 
         self.endScope()
-
-        return value
     
     def resolveReturn(self, r):
-        return r.expr.resolve(self)
+        raise ReturnValue(r.expr.resolve(self))
     
     def resolveIf(self, ifblock):
         cond = ifblock.cond.resolve(self)

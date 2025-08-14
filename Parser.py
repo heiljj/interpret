@@ -480,7 +480,7 @@ def printAstHelper(node) -> str:
     elif type(node) == str:
         return node
     elif type(node) == Return:
-        return f"return {printAst(node.expr)}"
+        return f"return {printAstHelper(node.expr)}"
     elif node == None:
         print("none object in ast")
     elif type(node) == If:
