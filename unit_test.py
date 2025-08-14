@@ -44,6 +44,19 @@ def test_fn2():
 def test_fn3():
     buildtest("fun test(a) {return a;} DEBUG test(1) + test(2)", 3)
 
+def test_fn4():
+    def fib(i):
+        return 1 if i == 0 or i == 1 else fib(i-1) + fib(i-2)
+
+    for i in range(10):
+        buildtest("fun fib(i) {             \
+            if (i == 0 or i == 1) {         \
+                return 1;                   \
+            } else {                        \
+                return fib(i-1) + fib(i-2); \
+            }} DEBUG fib(" + str(i) + ")    \
+        ", fib(i))
+
 
 def test_if1():
     buildtest("if (true) {DEBUG 1}", 1)
