@@ -1,5 +1,5 @@
 from Tokenizer import TokenType
-from Parser import BinaryOp, Value
+from Parser import Return
 
 
 binops = {
@@ -118,7 +118,10 @@ class Interpreter:
     
     def resolveStatements(self, statements):
         for s in statements.statements:
-            s.resolve(self)
+            value = s.resolve(self)
+
+            if type(s) == Return:
+                return value
     
     def resolveDebug(self, debug):
         value = debug.expr.resolve(self)
@@ -126,8 +129,9 @@ class Interpreter:
     
     def resolveBlock(self, block):
         self.beginScope()
-        block.statements.resolve(self)
+        value = block.statements.resolve(self)
         self.endScope()
+        return value
     
     def resolveBlocks(self, blocks):
         for block in blocks.blocks:
@@ -135,10 +139,34 @@ class Interpreter:
     
     def resolveFunctionDecl(self, func):
         self.decl(func.name)
-        self.set(func.name, func.block)
+        self.set(func.name, func)
     
-    def resolveFunctionCall(self, func):
-        pass
+    def resolveFunctionCall(self, call):
+        func = self.get(call.name)
+
+        self.beginScope()
+
+        for param, arg in zip(func.args, call.args):
+            value = arg.resolve(self)
+            self.decl(param)
+            self.set(param, value)
+        
+        value = func.block.resolve(self)
+
+        self.endScope()
+
+        return value
+    
+    def resolveReturn(self, r):
+        return r.expr.resolve(self)
+    
+    def resolveIf(self, ifblock):
+        cond = ifblock.cond.resolve(self)
+
+        if cond:
+            return ifblock.if_expr.resolve(self)
+        else:
+            return ifblock.else_expr.resolve(self)
 
 
 

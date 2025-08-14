@@ -35,6 +35,13 @@ class TokenType(Enum):
 
     DEBUG = 25
     COMMA = 26
+    RETURN = 27
+
+    IF = 28
+    ELSE = 29
+    WHILE = 30
+
+    BOOL = 31
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
@@ -68,7 +75,12 @@ tokenmap = {
     "and" : TokenType.AND,
 
     "DEBUG" : TokenType.DEBUG,
-    "," : TokenType.COMMA
+    "," : TokenType.COMMA,
+    "return" : TokenType.RETURN,
+
+    "if" : TokenType.IF,
+    "else" : TokenType.ELSE,
+    "while" : TokenType.WHILE,
 }
 
 reverse_tokenmap = dict(zip(tokenmap.values(), tokenmap.keys()))
@@ -198,13 +210,20 @@ class Tokenizer:
                 while self.isNext():
                     c = self.peek()
 
-                    if c == " " or c in "({!=;})":
+                    if c == " " or c in "({!=;}),":
                         break
 
                     chars += self.next()
 
                 if chars == "":
                     break
+                
+                if chars == "true":
+                    self.tokens.append(Token(TokenType.BOOL, True))
+                    break
+
+                if chars == "false":
+                    self.tokens.append(Token(TokenType.BOOL, False))
 
                 self.tokens.append(Token(TokenType.IDENTIFIER, chars))
 
@@ -222,6 +241,8 @@ def printTokens(tokens: list[Token]):
             s += f'"{t.value}"'
         elif t.kind == TokenType.IDENTIFIER:
             s += f'{t.value} '
+        elif t.kind == TokenType.BOOL:
+            s += f'{t.value}'
         else:
             s += f"{reverse_tokenmap[t.kind]} "
     

@@ -2,7 +2,7 @@ from Tokenizer import tokenize
 from Parser import parse
 from Interpreter import Interpreter
 
-
+#TODO remove semis
 def test1():
     buildtest("DEBUG 1 + 2 + 3;", 6)
 
@@ -20,6 +20,18 @@ def test5():
 
 def test6():
     buildtest("var abc = 1;{var abc = 2 + 3;}DEBUG abc;", 1)
+
+def test7():
+    buildtest("fun name() {var a = 1; {a = 2;} DEBUG a} name()", 2)
+
+def test8():
+    buildtest("fun db(a) {DEBUG a} db(1)", 1)
+
+def test9():
+    buildtest("fun db(a) {return a;} DEBUG db(1) + db(10)", 11)
+
+def test10():
+    buildtest("fun add(a, b) {return a + b;} DEBUG add(1, 2)", 3)
 
 def buildtest(text: str, res):
     tokens = tokenize(text)

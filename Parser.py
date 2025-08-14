@@ -5,7 +5,7 @@ class Node:
         pass
     
     def __repr__(self):
-        printAstHelper(self)
+        return printAstHelper(self)
 
 class Debug(Node):
     def __init__(self, expr):
@@ -13,6 +13,22 @@ class Debug(Node):
     
     def resolve(self, interpret):
         return interpret.resolveDebug(self)
+
+class If(Node):
+    def __init__(self, cond, if_expr, else_expr):
+        self.cond = cond
+        self.if_expr = if_expr
+        self.else_expr = else_expr
+    
+    def resolve(self, interpret):
+        interpret.resolveIf(self)
+
+class Return(Node):
+    def __init__(self, expr):
+        self.expr = expr
+    
+    def resolve(self, interpret):
+        return interpret.resolveReturn(self)
 
 class FunctionDecl(Node):
     def __init__(self, name, args, block):
@@ -112,12 +128,10 @@ def generateParseValue(expression_prec):
                 return Value(TokenType.STR, token.value)
             case TokenType.IDENTIFIER:
                 return VariableGet(token.value)
-            # case TokenType.BRAC_LEFT:
-            #     self.previous()
-            #     return self.parsePrec(0)
+            case TokenType.BOOL:
+                return Value(TokenType.BOOL, token.value)
             case _:
-                # return self.parsePrec(expression_prec)
-                raise Exception("adsf")
+                return self.parsePrec(expression_prec)
     
     return parseValue
 
@@ -251,7 +265,7 @@ def generateParseBlocks(prec):
     
     return parseBlocks
 
-def generateParseFunctionDefinition(prec):
+def generateParseFunctionDefinition(prec, block_prec):
     def parseFunctionDefinition(self):
         if not self.isNext():
             return
@@ -268,7 +282,7 @@ def generateParseFunctionDefinition(prec):
         args = []
 
         while self.peek().kind == TokenType.IDENTIFIER:
-            args += self.next()
+            args.append(self.next().value)
 
             if self.peek().kind == TokenType.COMMA:
                 self.match(TokenType.COMMA)
@@ -278,14 +292,58 @@ def generateParseFunctionDefinition(prec):
         self.match(TokenType.PAR_RIGHT)
 
         # TODO might need to use block prec here?
-        block = self.parsePrec(0)
+        block = self.parsePrec(block_prec)
 
         return FunctionDecl(identifier, args, block)
     return parseFunctionDefinition
 
-
-
+def generateParseFunctionCall(prec, expression_prec):
+    def parseFunctionCall(self):
+        if not self.isNext():
+            return
         
+        token = self.peek()
+
+        if token.kind != TokenType.IDENTIFIER:
+            return self.parsePrec(prec + 1)
+        
+        identifier = self.next()
+
+        if self.peek().kind != TokenType.PAR_LEFT:
+            self.previous()
+            return self.parsePrec(prec + 1)
+        
+        args = []
+        self.match(TokenType.PAR_LEFT)
+
+        while self.peek().kind != TokenType.PAR_RIGHT:
+            args.append(self.parsePrec(expression_prec))
+        
+        self.match(TokenType.PAR_RIGHT)
+
+        return FunctionCall(identifier.value, args)
+    
+    return parseFunctionCall
+
+def generateParseReturn(prec, expression_prec):
+    def parseReturn(self):
+        if not self.isNext():
+            return
+        
+        token = self.peek()
+
+        if token.kind != TokenType.RETURN:
+            return self.parsePrec(prec + 1)
+        
+        expr = self.parsePrec(expression_prec)
+        self.match(TokenType.SEMI)
+        return Return(expr)
+    
+    return parseReturn
+
+def generateParseIf(prec):
+    def parseIf(self):
+        pass
 
 # statements -> (function | assignment | decl | block | statement)*
 
@@ -312,24 +370,27 @@ class Parser:
     
         self.parsers = [
             generateParseStatements(0),
-            generateParseFunctionDefinition(1),
+            generateParseFunctionDefinition(1, 2),
+            # if here
             generateParseBlock(2),
             generateParseDebug(3),
             generateParseVarDecl(4),
             generateParseVarSet(5),
-            defineBinaryOpFunction(6, TokenType.OR),
-            defineBinaryOpFunction(7, TokenType.AND),
-            defineBinaryOpFunction(8, TokenType.COMP_EQ),
-            defineBinaryOpFunction(9, TokenType.COMP_NEQ),
-            defineBinaryOpFunction(10, TokenType.COMP_GT),
-            defineBinaryOpFunction(11, TokenType.COMP_LT),
-            defineBinaryOpFunction(12, TokenType.COMP_GT_EQ),
-            defineBinaryOpFunction(13, TokenType.COMP_LT_EQ),
-            defineBinaryOpFunction(14, TokenType.OP_PLUS),
-            defineBinaryOpFunction(15, TokenType.OP_MINUS),
-            defineBinaryOpFunction(16, TokenType.OP_MUL),
-            defineBinaryOpFunction(17, TokenType.OP_DIV),
-            generateParseValue(None)
+            generateParseReturn(6, 7),
+            defineBinaryOpFunction(7, TokenType.OR),
+            defineBinaryOpFunction(8, TokenType.AND),
+            defineBinaryOpFunction(9, TokenType.COMP_EQ),
+            defineBinaryOpFunction(10, TokenType.COMP_NEQ),
+            defineBinaryOpFunction(11, TokenType.COMP_GT),
+            defineBinaryOpFunction(12, TokenType.COMP_LT),
+            defineBinaryOpFunction(13, TokenType.COMP_GT_EQ),
+            defineBinaryOpFunction(14, TokenType.COMP_LT_EQ),
+            defineBinaryOpFunction(15, TokenType.OP_PLUS),
+            defineBinaryOpFunction(16, TokenType.OP_MINUS),
+            defineBinaryOpFunction(17, TokenType.OP_MUL),
+            defineBinaryOpFunction(18, TokenType.OP_DIV),
+            generateParseFunctionCall(19, 6),
+            generateParseValue(7)
         ]
 
         self.ast = self.parsePrec(0)
@@ -366,7 +427,7 @@ def printAstHelper(node) -> str:
         if node.type == TokenType.STR:
             return f'"{node.value}"'
 
-        return node.value
+        return str(node.value)
     elif type(node) == Statements:
         return "".join(map(lambda x : printAstHelper(x) + "", node.statements))
     elif type(node) == Debug:
@@ -382,8 +443,13 @@ def printAstHelper(node) -> str:
     elif type(node) == Block:
         return "{" + printAstHelper(node.statements) + "}"
     elif type(node) == FunctionDecl:
-        return f"{node.name}({"".join(map(lambda x : printAstHelper(x) + ",", node.args))[0:-1]})" + "{" + printAstHelper(node.block) + "}"
-
+        return f"{node.name}({"".join(map(lambda x : printAstHelper(x) + ",", node.args))[0:-1]})" + printAstHelper(node.block)
+    elif type(node) == FunctionCall:
+        return f"{node.name}({"".join(map(lambda x : printAstHelper(x) + ",", node.args))[0:-1]})"
+    elif type(node) == str:
+        return node
+    elif type(node) == Return:
+        return f"return {printAst(node.expr)}"
     else:
         op = reverse_tokenmap[node.op]
         return f"({printAstHelper(node.left)} {op} {printAstHelper(node.right)})" 
