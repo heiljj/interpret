@@ -124,3 +124,24 @@ class Interpreter:
         value = debug.expr.resolve(self)
         self.debuginfo = value
     
+    def resolveBlock(self, block):
+        self.beginScope()
+        block.statements.resolve(self)
+        self.endScope()
+    
+    def resolveBlocks(self, blocks):
+        for block in blocks.blocks:
+            block.resolve(self)
+    
+    def resolveFunctionDecl(self, func):
+        self.decl(func.name)
+        self.set(func.name, func.block)
+    
+    def resolveFunctionCall(self, func):
+        pass
+
+
+
+
+
+    

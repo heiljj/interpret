@@ -15,6 +15,12 @@ def test3():
 def test4():
     buildtest("DEBUG 1 == 1 and 1 == 1 or 1 != 2;", True)
 
+def test5():
+    buildtest("var abc = 1;{abc = 2 + 3;}DEBUG abc;", 5)
+
+def test6():
+    buildtest("var abc = 1;{var abc = 2 + 3;}DEBUG abc;", 1)
+
 def buildtest(text: str, res):
     tokens = tokenize(text)
     ast = parse(tokens)

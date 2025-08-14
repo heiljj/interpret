@@ -34,6 +34,7 @@ class TokenType(Enum):
     IDENTIFIER = 24
 
     DEBUG = 25
+    COMMA = 26
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
@@ -66,7 +67,8 @@ tokenmap = {
     "or" : TokenType.OR,
     "and" : TokenType.AND,
 
-    "DEBUG" : TokenType.DEBUG
+    "DEBUG" : TokenType.DEBUG,
+    "," : TokenType.COMMA
 }
 
 reverse_tokenmap = dict(zip(tokenmap.values(), tokenmap.keys()))
@@ -196,7 +198,7 @@ class Tokenizer:
                 while self.isNext():
                     c = self.peek()
 
-                    if c == " " or c in "({!=;":
+                    if c == " " or c in "({!=;})":
                         break
 
                     chars += self.next()

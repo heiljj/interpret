@@ -1,13 +1,3 @@
-# block       -> (stmt;);*
-# stmt        -> assign_stmt
-# assign_stmt -> 'var' [] = expr
-
-# expr       1-> or_expr ('or' or_exp)*
-# or_expr    2-> and_expr ('and' and_expr)*
-# and_expr   3-> pm_expr ('+' | '-' pm_expr)*
-# pm_expr    4-> md_expr ('*' | '/' md_expr)*
-# md_expr    5-> String | Num
-
 from Tokenizer import Token, TokenType, reverse_tokenmap
 
 class Node:
@@ -23,6 +13,24 @@ class Debug(Node):
     
     def resolve(self, interpret):
         return interpret.resolveDebug(self)
+
+class FunctionDecl(Node):
+    def __init__(self, name, args, block):
+        self.name = name
+        self.args = args
+        self.block = block
+    
+    def resolve(self, interpret):
+        return interpret.resolveFunctionDecl(self)
+
+class FunctionCall(Node):
+    def __init__(self, name, args):
+        self.name = name
+        self.args = args
+    
+    def resolve(self, interpret):
+        return interpret.resolveFunctionCall(self)
+
 
 class Statements(Node):
     def __init__(self, statements):
@@ -78,20 +86,40 @@ class Value(Node):
     def resolve(self, interpret):
         return interpret.resolveValue(self)
 
+class Block(Node):
+    def __init__(self, statements: Statements):
+        self.statements = statements
+    
+    def resolve(self, interpret):
+        return interpret.resolveBlock(self)
+
+class Blocks(Node):
+    def __init__(self, blocks):
+        self.blocks = blocks
+    
+    def resolve(self, interpret):
+        interpret.resolveBlocks(self)
 
 # outside of parser class so it can follow the same format as generated functions 
-def parseValue(self):
-    token = self.next()
+def generateParseValue(expression_prec):
+    def parseValue(self):
+        token = self.next()
 
-    match token.kind:
-        case TokenType.NUM:
-            return Value(TokenType.NUM, token.value)
-        case TokenType.STR:
-            return Value(TokenType.STR, token.value)
-        case TokenType.IDENTIFIER:
-            return VariableGet(token.value)
-        case _:
-            raise Exception("Token was not of kind value")
+        match token.kind:
+            case TokenType.NUM:
+                return Value(TokenType.NUM, token.value)
+            case TokenType.STR:
+                return Value(TokenType.STR, token.value)
+            case TokenType.IDENTIFIER:
+                return VariableGet(token.value)
+            # case TokenType.BRAC_LEFT:
+            #     self.previous()
+            #     return self.parsePrec(0)
+            case _:
+                # return self.parsePrec(expression_prec)
+                raise Exception("adsf")
+    
+    return parseValue
 
     
 def defineBinaryOpFunction(prec, op):
@@ -116,9 +144,8 @@ def generateParseStatements(prec):
         statements = []
         while self.isNext():
             statements.append(self.parsePrec(prec + 1))
-            self.match(TokenType.SEMI)
 
-            if not self.isNext() or self.peek().kind == TokenType.BRAC_LEFT:
+            if not self.isNext() or self.peek().kind == TokenType.BRAC_RIGHT:
                 break
         
         return Statements(statements)
@@ -154,8 +181,10 @@ def generateParseVarDecl(prec):
             if self.peek().kind == TokenType.DECL_EQ:
                 self.match(TokenType.DECL_EQ)
                 right = self.parsePrec(prec + 1)
+                self.match(TokenType.SEMI)
                 return VariableDeclAndSet(identifier.value, right)
                 
+            self.match(TokenType.SEMI)
             return VariableDecl(identifier.value)
         
         return self.parsePrec(prec + 1)
@@ -181,10 +210,100 @@ def generateParseVarSet(prec):
         self.match(TokenType.DECL_EQ)
 
         expr = self.parsePrec(prec + 1)
+        self.match(TokenType.SEMI)
         return VariableSet(token.value, expr)
             
     return parseVarSet
 
+def generateParseBlock(prec):
+    def parseBlock(self):
+        if not self.isNext():
+            return
+        
+        token = self.peek()
+        if token.kind == TokenType.BRAC_LEFT:
+            self.match(TokenType.BRAC_LEFT)
+
+            middle = self.parsePrec(0)
+
+            self.match(TokenType.BRAC_RIGHT)
+
+            return Block(middle)
+        
+        return self.parsePrec(prec + 1)
+    
+    return parseBlock
+
+def generateParseBlocks(prec):
+    def parseBlocks(self):
+        if not self.isNext():
+            return
+        
+        if self.peek().kind != TokenType.BRAC_LEFT:
+            return self.parsePrec(prec + 1)
+
+        blocks = []
+
+        while self.isNext():
+            blocks.append(self.parsePrec(prec + 1))
+        
+        return blocks
+    
+    return parseBlocks
+
+def generateParseFunctionDefinition(prec):
+    def parseFunctionDefinition(self):
+        if not self.isNext():
+            return
+        
+        token = self.peek()
+
+        if token.kind != TokenType.FUNC:
+            return self.parsePrec(prec + 1)
+        
+        self.match(TokenType.FUNC)
+        identifier = self.match(TokenType.IDENTIFIER).value
+        self.match(TokenType.PAR_LEFT)
+
+        args = []
+
+        while self.peek().kind == TokenType.IDENTIFIER:
+            args += self.next()
+
+            if self.peek().kind == TokenType.COMMA:
+                self.match(TokenType.COMMA)
+            else:
+                break
+
+        self.match(TokenType.PAR_RIGHT)
+
+        # TODO might need to use block prec here?
+        block = self.parsePrec(0)
+
+        return FunctionDecl(identifier, args, block)
+    return parseFunctionDefinition
+
+
+
+        
+
+# statements -> (function | assignment | decl | block | statement)*
+
+# function -> identifier(identifier*) block
+# delc -> var identifier; | var identifier = expr;
+# assignment -> identifier = expr;
+# block -> {statements}
+
+# expr -> or_expr (or or_expr)*
+# ...
+# div_expr -> Value (/ Value*)
+# Value -> num | str
+
+# statements -> expression*
+# expression -> declaration
+# declaration -> var identifier (= )?; | assignment
+# assignment -> identifier = or_expr; | or_expr;
+        
 class Parser:
     def __init__(self, tokens: list[Token]):
         self.tokens = tokens
@@ -193,22 +312,24 @@ class Parser:
     
         self.parsers = [
             generateParseStatements(0),
-            generateParseDebug(1),
-            generateParseVarDecl(2),
-            generateParseVarSet(3),
-            defineBinaryOpFunction(4, TokenType.OR),
-            defineBinaryOpFunction(5, TokenType.AND),
-            defineBinaryOpFunction(6, TokenType.COMP_EQ),
-            defineBinaryOpFunction(7, TokenType.COMP_NEQ),
-            defineBinaryOpFunction(8, TokenType.COMP_GT),
-            defineBinaryOpFunction(9, TokenType.COMP_LT),
-            defineBinaryOpFunction(10, TokenType.COMP_GT_EQ),
-            defineBinaryOpFunction(11, TokenType.COMP_LT_EQ),
-            defineBinaryOpFunction(12, TokenType.OP_PLUS),
-            defineBinaryOpFunction(13, TokenType.OP_MINUS),
-            defineBinaryOpFunction(14, TokenType.OP_MUL),
-            defineBinaryOpFunction(15, TokenType.OP_DIV),
-            parseValue
+            generateParseFunctionDefinition(1),
+            generateParseBlock(2),
+            generateParseDebug(3),
+            generateParseVarDecl(4),
+            generateParseVarSet(5),
+            defineBinaryOpFunction(6, TokenType.OR),
+            defineBinaryOpFunction(7, TokenType.AND),
+            defineBinaryOpFunction(8, TokenType.COMP_EQ),
+            defineBinaryOpFunction(9, TokenType.COMP_NEQ),
+            defineBinaryOpFunction(10, TokenType.COMP_GT),
+            defineBinaryOpFunction(11, TokenType.COMP_LT),
+            defineBinaryOpFunction(12, TokenType.COMP_GT_EQ),
+            defineBinaryOpFunction(13, TokenType.COMP_LT_EQ),
+            defineBinaryOpFunction(14, TokenType.OP_PLUS),
+            defineBinaryOpFunction(15, TokenType.OP_MINUS),
+            defineBinaryOpFunction(16, TokenType.OP_MUL),
+            defineBinaryOpFunction(17, TokenType.OP_DIV),
+            generateParseValue(None)
         ]
 
         self.ast = self.parsePrec(0)
@@ -247,21 +368,25 @@ def printAstHelper(node) -> str:
 
         return node.value
     elif type(node) == Statements:
-        return "".join(map(lambda x : printAstHelper(x) + ";\n", node.statements))
+        return "".join(map(lambda x : printAstHelper(x) + "", node.statements))
     elif type(node) == Debug:
         return f"DEBUG {printAstHelper(node.expr)}"
     elif type(node) == VariableDeclAndSet:
-        return f"var {node.name} = {printAstHelper(node.expr)}"
+        return f"var {node.name} = {printAstHelper(node.expr)};\n"
     elif type(node) == VariableDecl:
         return f"var {node.name}"
     elif type(node) == VariableSet:
-        return f"{node.name} = {printAstHelper(node.expr)}"
+        return f"{node.name} = {printAstHelper(node.expr)};\n"
     elif type(node) == VariableGet:
         return f"{node.name} "
+    elif type(node) == Block:
+        return "{" + printAstHelper(node.statements) + "}"
+    elif type(node) == FunctionDecl:
+        return f"{node.name}({"".join(map(lambda x : printAstHelper(x) + ",", node.args))[0:-1]})" + "{" + printAstHelper(node.block) + "}"
+
     else:
         op = reverse_tokenmap[node.op]
-        return f"({printAstHelper(node.left)} {op} {printAstHelper(node.right)})"
-
+        return f"({printAstHelper(node.left)} {op} {printAstHelper(node.right)})" 
 def printAst(node):
     print("ast:")
     print(printAstHelper(node))
