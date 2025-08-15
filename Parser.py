@@ -1,11 +1,9 @@
 from Tokenizer import Token, TokenType, reverse_token_map
 
 class Node:
-    def __init__(self):
-        pass
-    
     def __repr__(self):
         return printAstHelper(self)
+
 
 class Debug(Node):
     def __init__(self, expr):
@@ -13,6 +11,22 @@ class Debug(Node):
     
     def resolve(self, interpret):
         return interpret.resolveDebug(self)
+
+
+class Statements(Node):
+    def __init__(self, statements):
+        self.statements = statements
+    
+    def resolve(self, interpret):
+        return interpret.resolveStatements(self)
+
+
+class Block(Node):
+    def __init__(self, statements: Statements):
+        self.statements = statements
+    
+    def resolve(self, interpret):
+        return interpret.resolveBlock(self)
 
 class If(Node):
     def __init__(self, cond, if_expr, else_expr):
@@ -23,12 +37,31 @@ class If(Node):
     def resolve(self, interpret):
         interpret.resolveIf(self)
 
-class Return(Node):
-    def __init__(self, expr):
+
+class While(Node):
+    def __init__(self, cond, expr):
+        self.cond = cond
         self.expr = expr
     
     def resolve(self, interpret):
-        return interpret.resolveReturn(self)
+        return interpret.resolveWhile(self)
+
+
+class Continue(Node):
+    def __init__(self):
+        pass
+
+    def resolve(self, interpret):
+        interpret.resolveContinue(self)
+    
+
+class Break(Node):
+    def __init__(self):
+        pass
+
+    def resolve(self, interpret):
+        interpret.resolveBreak(self)
+
 
 class FunctionDecl(Node):
     def __init__(self, name, args, block):
@@ -39,6 +72,15 @@ class FunctionDecl(Node):
     def resolve(self, interpret):
         return interpret.resolveFunctionDecl(self)
 
+
+class Return(Node):
+    def __init__(self, expr):
+        self.expr = expr
+    
+    def resolve(self, interpret):
+        return interpret.resolveReturn(self)
+
+
 class FunctionCall(Node):
     def __init__(self, name, args):
         self.name = name
@@ -47,27 +89,6 @@ class FunctionCall(Node):
     def resolve(self, interpret):
         return interpret.resolveFunctionCall(self)
 
-class While(Node):
-    def __init__(self, cond, expr):
-        self.cond = cond
-        self.expr = expr
-    
-    def resolve(self, interpret):
-        return interpret.resolveWhile(self)
-
-class Statements(Node):
-    def __init__(self, statements):
-        self.statements = statements
-    
-    def resolve(self, interpret):
-        return interpret.resolveStatements(self)
-
-class VariableDecl(Node):
-    def __init__(self, name):
-        self.name = name
-    
-    def resolve(self, interpret):
-        return interpret.resolveVariableDecl(self)
 
 class VariableDeclAndSet(Node):
     def __init__(self, name, expr):
@@ -77,6 +98,15 @@ class VariableDeclAndSet(Node):
     def resolve(self, interpret):
         return interpret.resolveVariableDeclAndSet(self)
 
+
+class VariableDecl(Node):
+    def __init__(self, name):
+        self.name = name
+    
+    def resolve(self, interpret):
+        return interpret.resolveVariableDecl(self)
+
+
 class VariableSet(Node):
     def __init__(self, name, expr):
         self.name = name
@@ -85,12 +115,14 @@ class VariableSet(Node):
     def resolve(self, interpret):
         return interpret.resolveVariableSet(self)
 
+
 class VariableGet(Node):
     def __init__(self, name):
         self.name = name
     
     def resolve(self, interpret):
         return interpret.resolveVariableGet(self)
+
 
 class BinaryOp(Node):
     def __init__(self, left, op, right):
@@ -101,6 +133,7 @@ class BinaryOp(Node):
     def resolve(self, interpret):
         return interpret.resolveBinaryOp(self)
 
+
 class Value(Node):
     def __init__(self, type, value):
         self.type = type
@@ -109,19 +142,6 @@ class Value(Node):
     def resolve(self, interpret):
         return interpret.resolveValue(self)
 
-class Block(Node):
-    def __init__(self, statements: Statements):
-        self.statements = statements
-    
-    def resolve(self, interpret):
-        return interpret.resolveBlock(self)
-
-class Blocks(Node):
-    def __init__(self, blocks):
-        self.blocks = blocks
-    
-    def resolve(self, interpret):
-        interpret.resolveBlocks(self)
 
 # outside of parser class so it can follow the same format as generated functions 
 def generateParseValue(expression_prec):
