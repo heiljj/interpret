@@ -1,34 +1,38 @@
 from Tokenizer import Token, TokenType, reverse_token_map
 
-class Node:
-    def __repr__(self):
-        return printAstHelper(self)
-
-
-class Debug(Node):
+class Debug:
     def __init__(self, expr):
         self.expr = expr
     
     def resolve(self, interpret):
         return interpret.resolveDebug(self)
+    
+    def __str__(self):
+        return f"DEBUG {self.expr}"
 
 
-class Statements(Node):
+class Statements:
     def __init__(self, statements):
         self.statements = statements
     
     def resolve(self, interpret):
         return interpret.resolveStatements(self)
+    
+    def __str__(self):
+        return "".join(map(lambda x: str(x) + "\n", self.statements))
 
 
-class Block(Node):
+class Block:
     def __init__(self, statements: Statements):
         self.statements = statements
     
     def resolve(self, interpret):
         return interpret.resolveBlock(self)
+    
+    def __str__(self):
+        return f"{{{self.statements}}}"
 
-class If(Node):
+class If:
     def __init__(self, cond, if_expr, else_expr):
         self.cond = cond
         self.if_expr = if_expr
@@ -37,33 +41,40 @@ class If(Node):
     def resolve(self, interpret):
         interpret.resolveIf(self)
 
+    def __str__(self):
+        if self.else_expr:
+            return f"if ({self.cond}) {self.if_expr} else {self.else_expr}"
 
-class While(Node):
+
+class While:
     def __init__(self, cond, expr):
         self.cond = cond
         self.expr = expr
     
     def resolve(self, interpret):
         return interpret.resolveWhile(self)
+    
+    def __str__(self):
+        return f"while ({self.cond}) {self.expr}"
 
 
-class Continue(Node):
-    def __init__(self):
-        pass
-
+class Continue:
     def resolve(self, interpret):
         interpret.resolveContinue(self)
     
+    def __str__(self):
+        return "continue;"
+    
 
-class Break(Node):
-    def __init__(self):
-        pass
-
+class Break:
     def resolve(self, interpret):
         interpret.resolveBreak(self)
+    
+    def __str__(self):
+        return "break;"
 
 
-class FunctionDecl(Node):
+class FunctionDecl:
     def __init__(self, name, args, block):
         self.name = name
         self.args = args
@@ -72,59 +83,88 @@ class FunctionDecl(Node):
     def resolve(self, interpret):
         return interpret.resolveFunctionDecl(self)
 
+    def __str__(self):
+        arg_str = "".join(map(lambda x : x + ", ", self.args))
+        if arg_str:
+            arg_str = arg_str[:-2]
 
-class Return(Node):
+        return f"def {self.name}({arg_str}) {self.block}"
+
+
+class Return:
     def __init__(self, expr):
         self.expr = expr
     
     def resolve(self, interpret):
         return interpret.resolveReturn(self)
+    
+    def __str__(self):
+        return f"return {self.expr};"
 
 
-class FunctionCall(Node):
+class FunctionCall:
     def __init__(self, name, args):
         self.name = name
         self.args = args
     
     def resolve(self, interpret):
         return interpret.resolveFunctionCall(self)
+    
+    def __str__(self):
+        arg_str = "".join(map(lambda x : str(x) + ", ", self.args))
+        if arg_str:
+            arg_str = arg_str[:-2]
+        
+        return f"{self.name}({arg_str})"
 
 
-class VariableDeclAndSet(Node):
+class VariableDeclAndSet:
     def __init__(self, name, expr):
         self.name = name
         self.expr = expr
     
     def resolve(self, interpret):
         return interpret.resolveVariableDeclAndSet(self)
+    
+    def __str__(self):
+        return f"var {self.name} = {self.expr};"
 
 
-class VariableDecl(Node):
+class VariableDecl:
     def __init__(self, name):
         self.name = name
     
     def resolve(self, interpret):
         return interpret.resolveVariableDecl(self)
+    
+    def __str__(self):
+        return f"var {self.name};"
 
 
-class VariableSet(Node):
+class VariableSet:
     def __init__(self, name, expr):
         self.name = name
         self.expr = expr
     
     def resolve(self, interpret):
         return interpret.resolveVariableSet(self)
+    
+    def __str__(self):
+        return f"{self.name} = {self.expr};"
 
 
-class VariableGet(Node):
+class VariableGet:
     def __init__(self, name):
         self.name = name
     
     def resolve(self, interpret):
         return interpret.resolveVariableGet(self)
+    
+    def __str__(self):
+        return self.name 
+    
 
-
-class BinaryOp(Node):
+class BinaryOp:
     def __init__(self, left, op, right):
         self.left = left
         self.op = op
@@ -132,15 +172,21 @@ class BinaryOp(Node):
     
     def resolve(self, interpret):
         return interpret.resolveBinaryOp(self)
+    
+    def __str__(self):
+        return f"{self.left} {reverse_token_map[self.op]} {self.right}"
 
 
-class Value(Node):
+class Value:
     def __init__(self, type, value):
         self.type = type
         self.value = value
     
     def resolve(self, interpret):
         return interpret.resolveValue(self)
+    
+    def __str__(self):
+        return str(self.value)
 
 
 # outside of parser class so it can follow the same format as generated functions 
@@ -519,6 +565,15 @@ class Parser:
         
         return token
     
+    def tryMatch(self, t):
+        token = self.peek()
+
+        if token.kind == t:
+            self.match(t)
+            return True
+        
+        return False
+        
     def next(self):
         token = self.tokens[self.index]
         self.index += 1
@@ -536,50 +591,6 @@ class Parser:
     def parsePrec(self, prec):
         return self.parsers[prec](self)
 
-
-def printAstHelper(node) -> str:
-    if type(node) == Value:
-        if node.type == TokenType.STR:
-            return f'"{node.value}"'
-
-        return str(node.value)
-    elif type(node) == Statements:
-        return "".join(map(lambda x : printAstHelper(x) + "", node.statements))
-    elif type(node) == Debug:
-        return f"DEBUG {printAstHelper(node.expr)}"
-    elif type(node) == VariableDeclAndSet:
-        return f"var {node.name} = {printAstHelper(node.expr)};\n"
-    elif type(node) == VariableDecl:
-        return f"var {node.name}"
-    elif type(node) == VariableSet:
-        return f"{node.name} = {printAstHelper(node.expr)};\n"
-    elif type(node) == VariableGet:
-        return f"{node.name} "
-    elif type(node) == Block:
-        return "{" + printAstHelper(node.statements) + "}"
-    elif type(node) == FunctionDecl:
-        return f"{node.name}({"".join(map(lambda x : printAstHelper(x) + ",", node.args))[0:-1]})" + printAstHelper(node.block)
-    elif type(node) == FunctionCall:
-        return f"{node.name}({"".join(map(lambda x : printAstHelper(x) + ",", node.args))[0:-1]})"
-    elif type(node) == str:
-        return node
-    elif type(node) == Return:
-        return f"return {printAstHelper(node.expr)}"
-    elif node == None:
-        print("none object in ast")
-    elif type(node) == If:
-        if node.else_expr == None:
-            return f"if ({node.cond})"
-        else:
-            return f"if ({printAstHelper(node.cond)}) {printAstHelper(node.if_expr)} else {printAstHelper(node.else_expr)}"
-    elif type(node) == While:
-        return f"while ({printAstHelper(node.cond)}) {node.expr}"
-    else:
-        op = reverse_token_map[node.op]
-        return f"({printAstHelper(node.left)} {op} {printAstHelper(node.right)})" 
-def printAst(node):
-    print("ast:")
-    print(printAstHelper(node))
 
 def parse(tokens: list[Token]):
     parser = Parser(tokens)
