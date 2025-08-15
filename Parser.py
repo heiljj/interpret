@@ -204,6 +204,7 @@ def generateParseValue(expression_prec):
             case TokenType.BOOL:
                 return Value(TokenType.BOOL, token.value)
             case _:
+                self.previous()
                 return self.parsePrec(expression_prec)
     
     return parseValue
@@ -213,15 +214,10 @@ def defineBinaryOpFunction(prec, op):
     def parseBinaryOp(self):
         left = self.parsePrec(prec + 1)
 
-        while self.isNext():
-            token = self.peek()
-            if token.kind == op:
-                self.match(op)
-                right = self.parsePrec(prec + 1)
-                left = BinaryOp(left, op, right)
-            else: 
-                return left
-    
+        while self.tryMatch(op):
+            right = self.parsePrec(prec + 1)
+            left = BinaryOp(left, op, right)
+
         return left
 
     return parseBinaryOp
@@ -241,250 +237,157 @@ def generateParseStatements(prec):
 
 def generateParseDebug(prec):
     def parseDebug(self):
-        if not self.isNext():
-            return
-        
-        token = self.peek()
-        if token.kind == TokenType.DEBUG:
-            self.match(TokenType.DEBUG)
+        if self.tryMatch(TokenType.DEBUG):
             inner = self.parsePrec(prec+1)
             return Debug(inner)
-        else:
-            return self.parsePrec(prec+1)
+        
+        return self.parsePrec(prec + 1)
     
     return parseDebug
 
 def generateParseVarDecl(prec):
     def parseVarDecl(self):
-        if not self.isNext():
-            return
-        
-        token = self.peek()
-        if token.kind == TokenType.DECL:
-            self.match(TokenType.DECL)
-
+        if self.tryMatch(TokenType.DECL):
             identifier = self.match(TokenType.IDENTIFIER)
 
-            if self.peek().kind == TokenType.DECL_EQ:
-                self.match(TokenType.DECL_EQ)
+            if self.tryMatch(TokenType.DECL_EQ):
                 right = self.parsePrec(prec + 1)
                 self.match(TokenType.SEMI)
                 return VariableDeclAndSet(identifier.value, right)
-                
+
             self.match(TokenType.SEMI)
             return VariableDecl(identifier.value)
-        
+
         return self.parsePrec(prec + 1)
 
     return parseVarDecl
 
 def generateParseVarSet(prec):
     def parseVarSet(self):
-        if not self.isNext():
-            return
-        
-        token = self.peek()
-        if token.kind != TokenType.IDENTIFIER:
-            return self.parsePrec(prec + 1)
-        
-        token = self.next()
+        if (token := self.tryMatch(TokenType.IDENTIFIER)):
 
-        if not self.isNext() or self.peek().kind != TokenType.DECL_EQ:
-            self.previous()
-            return self.parsePrec(prec + 1)
-        
-        self.match(TokenType.DECL_EQ)
-
-        expr = self.parsePrec(prec + 1)
-        self.match(TokenType.SEMI)
-        return VariableSet(token.value, expr)
+            if not self.tryMatch(TokenType.DECL_EQ):
+                self.previous()
+                return self.parsePrec(prec + 1)
             
+            expr = self.parsePrec(prec + 1)
+            self.match(TokenType.SEMI)
+            return VariableSet(token.value, expr)
+        
+        return self.parsePrec(prec + 1)
+
     return parseVarSet
 
 def generateParseBlock(prec):
     def parseBlock(self):
-        if not self.isNext():
-            return
-        
-        token = self.peek()
-        if token.kind == TokenType.BRAC_LEFT:
-            self.match(TokenType.BRAC_LEFT)
-            
-            if self.peek().kind == TokenType.BRAC_RIGHT:
-                self.match(TokenType.BRAC_RIGHT)
-                return Block(Value(TokenType.NUM, 0))
 
-            middle = self.parsePrec(0)
-
-            self.match(TokenType.BRAC_RIGHT)
-
-            return Block(middle)
-        
-        return self.parsePrec(prec + 1)
-    
-    return parseBlock
-
-def generateParseBlocks(prec):
-    def parseBlocks(self):
-        if not self.isNext():
-            return
-        
-        if self.peek().kind != TokenType.BRAC_LEFT:
+        if not self.tryMatch(TokenType.BRAC_LEFT):
             return self.parsePrec(prec + 1)
-
-        blocks = []
-
-        while self.isNext():
-            blocks.append(self.parsePrec(prec + 1))
         
-        return blocks
-    
-    return parseBlocks
+        if self.tryMatch(TokenType.BRAC_RIGHT):
+            return Block(Value(TokenType.NUM), 0)
+        
+        middle = self.parsePrec(0)
+        self.match(TokenType.BRAC_RIGHT)
+
+        return Block(middle)
+
+    return parseBlock
 
 def generateParseFunctionDefinition(prec, block_prec):
     def parseFunctionDefinition(self):
-        if not self.isNext():
-            return
-        
-        token = self.peek()
-
-        if token.kind != TokenType.FUNC:
+        if not self.tryMatch(TokenType.FUNC):
             return self.parsePrec(prec + 1)
-        
-        self.match(TokenType.FUNC)
+
         identifier = self.match(TokenType.IDENTIFIER).value
         self.match(TokenType.PAR_LEFT)
 
         args = []
 
-        while self.peek().kind == TokenType.IDENTIFIER:
-            args.append(self.next().value)
+        while (token := self.tryMatch(TokenType.IDENTIFIER)):
+            args.append(token.value)
 
-            if self.peek().kind == TokenType.COMMA:
-                self.match(TokenType.COMMA)
-            else:
+            if not self.tryMatch(TokenType.COMMA):
                 break
-
+        
         self.match(TokenType.PAR_RIGHT)
-
-        # TODO might need to use block prec here?
         block = self.parsePrec(block_prec)
-
         return FunctionDecl(identifier, args, block)
+
     return parseFunctionDefinition
 
 def generateParseFunctionCall(prec, expression_prec):
     def parseFunctionCall(self):
-        if not self.isNext():
-            return
-        
-        token = self.peek()
-
-        if token.kind != TokenType.IDENTIFIER:
+        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
             return self.parsePrec(prec + 1)
         
-        identifier = self.next()
-
-        if not self.isNext():
+        if not self.tryMatch(TokenType.PAR_LEFT):
             self.previous()
             return self.parsePrec(prec + 1)
 
-        if self.peek().kind != TokenType.PAR_LEFT:
-            self.previous()
-            return self.parsePrec(prec + 1)
-        
         args = []
-        self.match(TokenType.PAR_LEFT)
 
         while self.peek().kind != TokenType.PAR_RIGHT:
             args.append(self.parsePrec(expression_prec))
+
+            if not self.tryMatch(TokenType.COMMA):
+                break
         
         self.match(TokenType.PAR_RIGHT)
-
         return FunctionCall(identifier.value, args)
     
     return parseFunctionCall
 
 def generateParseReturn(prec, expression_prec):
     def parseReturn(self):
-        if not self.isNext():
-            return
-        
-        token = self.peek()
-
-        if token.kind != TokenType.RETURN:
-            return self.parsePrec(prec + 1)
+        if not self.tryMatch(TokenType.RETURN):
+            return self.parsePrec(expression_prec)
         
         expr = self.parsePrec(expression_prec)
         self.match(TokenType.SEMI)
+
         return Return(expr)
     
     return parseReturn
 
 def generateParseIf(prec, block_prec, expr_prec):
     def parseIf(self):
-        if not self.isNext():
-            return
+        if self.tryMatch(TokenType.IF):
+            self.match(TokenType.PAR_LEFT)
+            cond = self.parsePrec(expr_prec)
+            self.match(TokenType.PAR_RIGHT)
+
+            if_expr = self.parsePrec(block_prec)
+
+            if not self.tryMatch(TokenType.ELSE):
+                return If(cond, if_expr, None)
+            
+            else_expr = self.parsePrec(block_prec)
+            return If(cond, if_expr, else_expr)
         
-        token = self.peek()
-
-        if token.kind != TokenType.IF:
-            return self.parsePrec(prec + 1)
-        
-        self.match(TokenType.IF)
-        self.match(TokenType.PAR_LEFT)
-
-        cond = self.parsePrec(expr_prec)
-
-        self.match(TokenType.PAR_RIGHT)
-
-        if_expr = self.parsePrec(block_prec)
-
-        if not self.isNext():
-            return If(cond, if_expr, None)
-        
-        self.match(TokenType.ELSE)
-        
-        else_expr = self.parsePrec(block_prec)
-
-        return If(cond, if_expr, else_expr)
+        return self.parsePrec(prec + 1)
     
     return parseIf
 
 def generateParseWhile(prec, block_prec, expr_prec):
     def parseWhile(self):
-        if not self.isNext():
-            return
-        
-        token = self.peek()
-
-        if token.kind != TokenType.WHILE:
+        if not self.tryMatch(TokenType.WHILE):
             return self.parsePrec(prec + 1)
         
-        self.match(TokenType.WHILE)
         self.match(TokenType.PAR_LEFT)
-
         cond = self.parsePrec(expr_prec)
-
         self.match(TokenType.PAR_RIGHT)
 
         block = self.parsePrec(block_prec)
-
         return While(cond, block)
     
     return parseWhile
 
 def generateParseFor(prec, block_prec, var_decl_prec):
     def parseFor(self):
-        if not self.isNext():
-            return
-        
-        token = self.peek()
-
-        if token.kind != TokenType.FOR:
+        if not self.tryMatch(TokenType.FOR):
             return self.parsePrec(prec + 1)
-        
-        self.match(TokenType.FOR)
+
         self.match(TokenType.PAR_LEFT)
 
         assign = self.parsePrec(var_decl_prec)
@@ -566,11 +469,13 @@ class Parser:
         return token
     
     def tryMatch(self, t):
+        if not self.isNext():
+            return False
+
         token = self.peek()
 
         if token.kind == t:
-            self.match(t)
-            return True
+            return self.match(t)
         
         return False
         
