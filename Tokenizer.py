@@ -7,52 +7,50 @@ class TokenType(Enum):
     BRAC_LEFT = 3
     BRAC_RIGHT = 4
 
-    OP_PLUS = 5
-    OP_MINUS = 6
-    OP_MUL = 7
-    OP_DIV = 8
+    QUOTE = 5
+    SEMI = 6
+    COMMA = 7
 
-    FUNC = 9
-    DECL_EQ = 10
-    DECL = 11
-    QUOTE = 12
-    SEMI = 13
+    NUM = 8
+    STR = 9
+    BOOL = 10
+    IDENTIFIER = 11
 
-    COMP_EQ = 14
-    COMP_NEQ = 15
-    COMP_LT_EQ = 16
-    COMP_GT_EQ = 17
-    COMP_LT = 18
-    COMP_GT = 19
+    FUNC = 12
+    DECL_EQ = 13
+    DECL = 14
 
-    OR = 20
-    AND = 21
+    OP_PLUS = 15
+    OP_MINUS = 16
+    OP_MUL = 17
+    OP_DIV = 18
 
-    NUM = 22
-    STR = 23
+    OR = 19
+    AND = 20
 
-    IDENTIFIER = 24
+    COMP_EQ = 21
+    COMP_NEQ = 22
+    COMP_LT_EQ = 23
+    COMP_GT_EQ = 24
+    COMP_LT = 25
+    COMP_GT = 26
 
-    DEBUG = 25
-    COMMA = 26
-    RETURN = 27
+    DEBUG = 27
 
     IF = 28
     ELSE = 29
     WHILE = 30
     FOR = 31
-    CONTINUE = 32;
+    CONTINUE = 32
     BREAK = 33
-
-
-    BOOL = 34
+    RETURN = 34
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
         self.value = value
         self.kind = kind
 
-tokenmap = {
+token_map = {
     "(" : TokenType.PAR_LEFT,
     ")" : TokenType.PAR_RIGHT,
     "{" : TokenType.BRAC_LEFT,
@@ -90,18 +88,18 @@ tokenmap = {
     "continue" : TokenType.CONTINUE
 }
 
-reverse_tokenmap = dict(zip(tokenmap.values(), tokenmap.keys()))
+reverse_token_map = dict(zip(token_map.values(), token_map.keys()))
 class Tokenizer:
-    def __init__(self, text: str, tokenmap=tokenmap):
+    def __init__(self, text: str, token_map=token_map):
         self.text = "".join(text.splitlines())
         self.length = len(self.text)
         self.index = 0
         self.tokens = []
-        self.tokenmap = tokenmap
+        self.token_map = token_map
 
-        self.charmap = {}
-        for token in tokenmap:
-            current = self.charmap
+        self.token_tree = {}
+        for token in token_map:
+            current = self.token_tree
 
             for letter in token:
                 if letter in current:
@@ -179,6 +177,10 @@ class Tokenizer:
 
             c = self.peek()
 
+            if c == " ":
+                self.next()
+                continue
+
             if c in map(float.__str__, range(10)):
                 self.parseNumber()
                 continue
@@ -186,34 +188,25 @@ class Tokenizer:
             if c == '"':
                 self.parseString()
             
-            if c == " ":
-                self.next()
-                continue
-
-
-            current = self.charmap
+            current_branch = self.token_tree
             chars = ""
 
             while self.isNext():
-                c = self.next()
+                c = self.peek()
 
-                if c in current:
+                if c in current_branch:
+                    self.next()
                     chars += c
-                    current = current[c]
+                    current_branch = current_branch[c]
                 else:
-                    self.previous()
                     break
 
-            if chars in self.tokenmap:
-                tokentype = self.tokenmap[chars]
+            if chars in self.token_map:
+                tokentype = self.token_map[chars]
                 self.tokens.append(Token(tokentype))
+                continue
 
-                if tokentype == TokenType.DECL or tokentype == TokenType.FUNC:
-                    if self.next() != " ":
-                        raise Exception("delc/func parsed but no space after?")
-                    self.parseIdentifier()
             else:
-
                 while self.isNext():
                     c = self.peek()
 
@@ -222,9 +215,6 @@ class Tokenizer:
 
                     chars += self.next()
 
-                if chars == "":
-                    break
-                
                 if chars == "true":
                     self.tokens.append(Token(TokenType.BOOL, True))
                     continue 
@@ -252,6 +242,6 @@ def printTokens(tokens: list[Token]):
         elif t.kind == TokenType.BOOL:
             s += f'{t.value}'
         else:
-            s += f"{reverse_tokenmap[t.kind]} "
+            s += f"{reverse_token_map[t.kind]} "
     
     print(s)

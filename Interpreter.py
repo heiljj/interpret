@@ -31,7 +31,7 @@ class Interpreter:
         self.globals = {}
         self.locals = []
         self.scope = 0
-        self.debuginfo = None
+        self.debug_info = None
 
         self.res = ast.resolve(self)
     
@@ -127,7 +127,7 @@ class Interpreter:
     
     def resolveDebug(self, debug):
         value = debug.expr.resolve(self)
-        self.debuginfo = value
+        self.debug_info = value
     
     def resolveBlock(self, block):
         self.beginScope()

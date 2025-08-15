@@ -1,4 +1,4 @@
-from Tokenizer import Token, TokenType, reverse_tokenmap
+from Tokenizer import Token, TokenType, reverse_token_map
 
 class Node:
     def __init__(self):
@@ -555,7 +555,7 @@ def printAstHelper(node) -> str:
     elif type(node) == While:
         return f"while ({printAstHelper(node.cond)}) {node.expr}"
     else:
-        op = reverse_tokenmap[node.op]
+        op = reverse_token_map[node.op]
         return f"({printAstHelper(node.left)} {op} {printAstHelper(node.right)})" 
 def printAst(node):
     print("ast:")
