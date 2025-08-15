@@ -182,6 +182,9 @@ class Interpreter:
             if ifblock.else_expr != None:
                 return ifblock.else_expr.resolve(self)
 
+    def resolveWhile(self, wh):
+        while (wh.cond.resolve(self)):
+            wh.expr.resolve(self)
 
 
 

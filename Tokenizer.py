@@ -40,8 +40,12 @@ class TokenType(Enum):
     IF = 28
     ELSE = 29
     WHILE = 30
+    FOR = 31
+    CONTINUE = 32;
+    BREAK = 33
 
-    BOOL = 31
+
+    BOOL = 34
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
@@ -81,6 +85,9 @@ tokenmap = {
     "if" : TokenType.IF,
     "else" : TokenType.ELSE,
     "while" : TokenType.WHILE,
+    "for" : TokenType.FOR,
+    "break" : TokenType.BREAK,
+    "continue" : TokenType.CONTINUE
 }
 
 reverse_tokenmap = dict(zip(tokenmap.values(), tokenmap.keys()))
@@ -248,7 +255,3 @@ def printTokens(tokens: list[Token]):
             s += f"{reverse_tokenmap[t.kind]} "
     
     print(s)
-
-# add vars to tokenizer
-# second passthrough to check for errors
-# start scope stuff

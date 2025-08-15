@@ -2,8 +2,6 @@ from Tokenizer import tokenize
 from Parser import parse
 from Interpreter import Interpreter
 
-#TODO remove semis
-
 def test_expr1():
     buildtest("DEBUG true", True)
 
@@ -77,6 +75,14 @@ def test_if6():
     buildtest("fun test() {return true;} if (test()) {DEBUG 1} else {DEBUG 2}", 1)
 
 
+def test_loop1():
+    buildtest("var i = 0; while(i < 5) {i = i + 1;} DEBUG i", 5)
+
+def test_loop2():
+    buildtest("var i = 0; for (var j = 0; j < 5; j = j + 1;) {i = i + 1;} DEBUG i", 5)
+
+def test_loop3():
+    buildtest("var i = 0; for (var j = 0; j < 3; j = j + 1;) {for (var k = 0; k < 3; k = k + 1;) {i = j + k + i;}} DEBUG i", 18)
 
 def test1():
     buildtest("DEBUG 1 + 2 + 3", 6)

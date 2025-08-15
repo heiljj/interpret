@@ -47,6 +47,13 @@ class FunctionCall(Node):
     def resolve(self, interpret):
         return interpret.resolveFunctionCall(self)
 
+class While(Node):
+    def __init__(self, cond, expr):
+        self.cond = cond
+        self.expr = expr
+    
+    def resolve(self, interpret):
+        return interpret.resolveWhile(self)
 
 class Statements(Node):
     def __init__(self, statements):
@@ -206,7 +213,6 @@ def generateParseVarDecl(prec):
     return parseVarDecl
 
 def generateParseVarSet(prec):
-    #TODO
     def parseVarSet(self):
         if not self.isNext():
             return
@@ -237,6 +243,10 @@ def generateParseBlock(prec):
         token = self.peek()
         if token.kind == TokenType.BRAC_LEFT:
             self.match(TokenType.BRAC_LEFT)
+            
+            if self.peek().kind == TokenType.BRAC_RIGHT:
+                self.match(TokenType.BRAC_RIGHT)
+                return Block(Value(TokenType.NUM, 0))
 
             middle = self.parsePrec(0)
 
@@ -375,6 +385,57 @@ def generateParseIf(prec, block_prec, expr_prec):
     
     return parseIf
 
+def generateParseWhile(prec, block_prec, expr_prec):
+    def parseWhile(self):
+        if not self.isNext():
+            return
+        
+        token = self.peek()
+
+        if token.kind != TokenType.WHILE:
+            return self.parsePrec(prec + 1)
+        
+        self.match(TokenType.WHILE)
+        self.match(TokenType.PAR_LEFT)
+
+        cond = self.parsePrec(expr_prec)
+
+        self.match(TokenType.PAR_RIGHT)
+
+        block = self.parsePrec(block_prec)
+
+        return While(cond, block)
+    
+    return parseWhile
+
+def generateParseFor(prec, block_prec, var_decl_prec):
+    def parseFor(self):
+        if not self.isNext():
+            return
+        
+        token = self.peek()
+
+        if token.kind != TokenType.FOR:
+            return self.parsePrec(prec + 1)
+        
+        self.match(TokenType.FOR)
+        self.match(TokenType.PAR_LEFT)
+
+        assign = self.parsePrec(var_decl_prec)
+        cond = self.parsePrec(var_decl_prec)
+        self.match(TokenType.SEMI)
+        incr = self.parsePrec(var_decl_prec)
+
+        self.match(TokenType.PAR_RIGHT)
+
+        block = self.parsePrec(block_prec)
+
+        while_body = Statements([block, incr])
+        while_loop = While(cond, while_body)
+        for_loop = Statements([assign, while_loop])
+
+        return Block(for_loop)
+    return parseFor
 
 # statements -> (function | assignment | decl | block | statement)*
 
@@ -392,36 +453,39 @@ def generateParseIf(prec, block_prec, expr_prec):
 # expression -> declaration
 # declaration -> var identifier (= )?; | assignment
 # assignment -> identifier = or_expr; | or_expr;
+
         
 class Parser:
     def __init__(self, tokens: list[Token]):
         self.tokens = tokens
         self.index = 0
         self.end = len(self.tokens)
-    
+
         self.parsers = [
             generateParseStatements(0),
-            generateParseFunctionDefinition(1, 3),
-            generateParseIf(2, 3, 8),
-            generateParseBlock(3),
-            generateParseDebug(4),
-            generateParseVarDecl(5),
-            generateParseVarSet(6),
-            generateParseReturn(7, 8),
-            defineBinaryOpFunction(8, TokenType.OR),
-            defineBinaryOpFunction(9, TokenType.AND),
-            defineBinaryOpFunction(10, TokenType.COMP_EQ),
-            defineBinaryOpFunction(11, TokenType.COMP_NEQ),
-            defineBinaryOpFunction(12, TokenType.COMP_GT),
-            defineBinaryOpFunction(13, TokenType.COMP_LT),
-            defineBinaryOpFunction(14, TokenType.COMP_GT_EQ),
-            defineBinaryOpFunction(15, TokenType.COMP_LT_EQ),
-            defineBinaryOpFunction(16, TokenType.OP_PLUS),
-            defineBinaryOpFunction(17, TokenType.OP_MINUS),
-            defineBinaryOpFunction(18, TokenType.OP_MUL),
-            defineBinaryOpFunction(19, TokenType.OP_DIV),
-            generateParseFunctionCall(20, 8),
-            generateParseValue(8)
+            generateParseFunctionDefinition(1, 5),
+            generateParseWhile(2, 5, 10),
+            generateParseFor(3, 5, 7),
+            generateParseIf(4, 5, 10),
+            generateParseBlock(5),
+            generateParseDebug(6),
+            generateParseVarDecl(7),
+            generateParseVarSet(8),
+            generateParseReturn(9, 10),
+            defineBinaryOpFunction(10, TokenType.OR),
+            defineBinaryOpFunction(11, TokenType.AND),
+            defineBinaryOpFunction(12, TokenType.COMP_EQ),
+            defineBinaryOpFunction(13, TokenType.COMP_NEQ),
+            defineBinaryOpFunction(14, TokenType.COMP_GT),
+            defineBinaryOpFunction(15, TokenType.COMP_LT),
+            defineBinaryOpFunction(16, TokenType.COMP_GT_EQ),
+            defineBinaryOpFunction(17, TokenType.COMP_LT_EQ),
+            defineBinaryOpFunction(18, TokenType.OP_PLUS),
+            defineBinaryOpFunction(19, TokenType.OP_MINUS),
+            defineBinaryOpFunction(20, TokenType.OP_MUL),
+            defineBinaryOpFunction(21, TokenType.OP_DIV),
+            generateParseFunctionCall(22, 10),
+            generateParseValue(10)
         ]
 
         self.ast = self.parsePrec(0)
@@ -488,6 +552,8 @@ def printAstHelper(node) -> str:
             return f"if ({node.cond})"
         else:
             return f"if ({printAstHelper(node.cond)}) {printAstHelper(node.if_expr)} else {printAstHelper(node.else_expr)}"
+    elif type(node) == While:
+        return f"while ({printAstHelper(node.cond)}) {node.expr}"
     else:
         op = reverse_tokenmap[node.op]
         return f"({printAstHelper(node.left)} {op} {printAstHelper(node.right)})" 
