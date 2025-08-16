@@ -84,6 +84,23 @@ def test_loop2():
 def test_loop3():
     buildtest("var i = 0; for (var j = 0; j < 3; j = j + 1;) {for (var k = 0; k < 3; k = k + 1;) {i = j + k + i;}} DEBUG i", 18)
 
+
+def test_repl():
+    l1 = "var i = 1;"
+    l2 = "DEBUG i"
+
+    tokens1 = tokenize(l1)
+    tokens2 = tokenize(l2)
+
+    ast1 = parse(tokens1)
+    ast2 = parse(tokens2)
+
+    inter = Interpreter()
+    inter.interpret(ast1)
+    inter.interpret(ast2)
+    assert inter.debug_info == 1
+
+
 def test1():
     buildtest("DEBUG 1 + 2 + 3", 6)
 
@@ -117,5 +134,6 @@ def test10():
 def buildtest(text: str, res):
     tokens = tokenize(text)
     ast = parse(tokens)
-    inter = Interpreter(ast)
+    inter = Interpreter()
+    inter.interpret(ast)
     assert inter.debug_info == res

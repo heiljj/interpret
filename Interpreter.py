@@ -25,15 +25,14 @@ binops = {
 }
 
 class Interpreter:
-    def __init__(self, ast):
-        self.ast = ast
-
+    def __init__(self):
         self.globals = {}
         self.locals = []
         self.scope = 0
         self.debug_info = None
 
-        self.res = ast.resolve(self)
+    def interpret(self, ast):
+        return ast.resolve(self)
     
     def beginScope(self):
         self.scope += 1
@@ -104,30 +103,37 @@ class Interpreter:
         if vardecl.value != None:
             value = vardecl.value.resolve(self)
             self.set(vardecl.name, value)
+        
+        return value
     
     def resolveVariableSet(self, varset):
         value = varset.expr.resolve(self)
         self.set(varset.name, value)
+
+        return value
     
     def resolveVariableDeclAndSet(self, vardeclset):
         self.decl(vardeclset.name)
         value = vardeclset.expr.resolve(self)
         self.set(vardeclset.name, value)
+
+        return value
     
     def resolveVariableGet(self, varget):
         return self.get(varget.name)
     
     def resolveStatements(self, statements):
+        value = None
         for s in statements.statements:
             value = s.resolve(self)
+        
+        return value
 
-            if type(s) == Return:
-
-                return value
     
     def resolveDebug(self, debug):
         value = debug.expr.resolve(self)
         self.debug_info = value
+        return value
     
     def resolveBlock(self, block):
         self.beginScope()

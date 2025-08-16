@@ -1,5 +1,4 @@
 from Tokenizer import Token, TokenType, reverse_token_map
-from functools import partial
 
 class Debug:
     def __init__(self, expr):
