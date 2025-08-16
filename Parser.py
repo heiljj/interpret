@@ -526,6 +526,8 @@ def generateParseClassSetter(prec, expr_prec):
     def parseClassSetter(self):
         saved_index = self.index
 
+        #TODO need to combine get and set for things that return a class
+
         ret = self.parseProperties()
         if not ret:
             return self.parsePrec(prec + 1)
@@ -542,6 +544,11 @@ def generateParseClassSetter(prec, expr_prec):
         return ObjectSetter(identifier.value, properties, expr)
     
     return parseClassSetter
+
+def generateParseObjectMethodCall(prec):
+    def parseObjectMethodCall(self):
+
+
 
 # statements -> (function | assignment | decl | block | statement)*
 

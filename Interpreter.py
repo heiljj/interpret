@@ -22,7 +22,7 @@ class ClassObject():
 
 class ClassInstance():
     def __init__(self, classobj: ClassObject):
-        self.scope = classobj.methods
+        self.scope = dict(zip(classobj.methods.keys(), classobj.methods.values()))
 
 
 binops = {
