@@ -1,4 +1,5 @@
 from Tokenizer import Token, TokenType, reverse_token_map
+from functools import partial
 
 class Debug:
     def __init__(self, expr):
@@ -206,10 +207,9 @@ def generateParseValue(expression_prec):
             case _:
                 self.previous()
                 return self.parsePrec(expression_prec)
-    
     return parseValue
-
     
+
 def defineBinaryOpFunction(prec, op):
     def parseBinaryOp(self):
         left = self.parsePrec(prec + 1)
@@ -232,7 +232,7 @@ def generateParseStatements(prec):
                 break
         
         return Statements(statements)
-
+    
     return parseStatements
 
 def generateParseDebug(prec):
@@ -259,7 +259,7 @@ def generateParseVarDecl(prec):
             return VariableDecl(identifier.value)
 
         return self.parsePrec(prec + 1)
-
+    
     return parseVarDecl
 
 def generateParseVarSet(prec):
@@ -275,12 +275,11 @@ def generateParseVarSet(prec):
             return VariableSet(token.value, expr)
         
         return self.parsePrec(prec + 1)
-
+    
     return parseVarSet
 
 def generateParseBlock(prec):
     def parseBlock(self):
-
         if not self.tryMatch(TokenType.BRAC_LEFT):
             return self.parsePrec(prec + 1)
         
@@ -291,30 +290,31 @@ def generateParseBlock(prec):
         self.match(TokenType.BRAC_RIGHT)
 
         return Block(middle)
-
+    
     return parseBlock
 
 def generateParseFunctionDefinition(prec, block_prec):
     def parseFunctionDefinition(self):
-        if not self.tryMatch(TokenType.FUNC):
-            return self.parsePrec(prec + 1)
+            if not self.tryMatch(TokenType.FUNC):
+                return self.parsePrec(prec + 1)
 
-        identifier = self.match(TokenType.IDENTIFIER).value
-        self.match(TokenType.PAR_LEFT)
+            identifier = self.match(TokenType.IDENTIFIER).value
+            self.match(TokenType.PAR_LEFT)
 
-        args = []
+            args = []
 
-        while (token := self.tryMatch(TokenType.IDENTIFIER)):
-            args.append(token.value)
+            while (token := self.tryMatch(TokenType.IDENTIFIER)):
+                args.append(token.value)
 
-            if not self.tryMatch(TokenType.COMMA):
-                break
-        
-        self.match(TokenType.PAR_RIGHT)
-        block = self.parsePrec(block_prec)
-        return FunctionDecl(identifier, args, block)
-
+                if not self.tryMatch(TokenType.COMMA):
+                    break
+            
+            self.match(TokenType.PAR_RIGHT)
+            block = self.parsePrec(block_prec)
+            return FunctionDecl(identifier, args, block)
+    
     return parseFunctionDefinition
+
 
 def generateParseFunctionCall(prec, expression_prec):
     def parseFunctionCall(self):
@@ -341,7 +341,7 @@ def generateParseFunctionCall(prec, expression_prec):
 def generateParseReturn(prec, expression_prec):
     def parseReturn(self):
         if not self.tryMatch(TokenType.RETURN):
-            return self.parsePrec(expression_prec)
+            return self.parsePrec(prec + 1)
         
         expr = self.parsePrec(expression_prec)
         self.match(TokenType.SEMI)
@@ -367,7 +367,8 @@ def generateParseIf(prec, block_prec, expr_prec):
         
         return self.parsePrec(prec + 1)
     
-    return parseIf
+    return parseIf 
+
 
 def generateParseWhile(prec, block_prec, expr_prec):
     def parseWhile(self):
@@ -380,7 +381,7 @@ def generateParseWhile(prec, block_prec, expr_prec):
 
         block = self.parsePrec(block_prec)
         return While(cond, block)
-    
+        
     return parseWhile
 
 def generateParseFor(prec, block_prec, var_decl_prec):
@@ -404,6 +405,7 @@ def generateParseFor(prec, block_prec, var_decl_prec):
         for_loop = Statements([assign, while_loop])
 
         return Block(for_loop)
+    
     return parseFor
 
 # statements -> (function | assignment | decl | block | statement)*
@@ -422,8 +424,6 @@ def generateParseFor(prec, block_prec, var_decl_prec):
 # expression -> declaration
 # declaration -> var identifier (= )?; | assignment
 # assignment -> identifier = or_expr; | or_expr;
-
-        
 class Parser:
     def __init__(self, tokens: list[Token]):
         self.tokens = tokens
