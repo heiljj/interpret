@@ -118,4 +118,4 @@ def buildtest(text: str, res):
     tokens = tokenize(text)
     ast = parse(tokens)
     inter = Interpreter(ast)
-    assert inter.debuginfo == res
+    assert inter.debug_info == res
