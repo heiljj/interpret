@@ -23,6 +23,19 @@ def test_expr6():
 def test_expr7():
     buildtest("DEBUG 1 * 2 + 3", 5)
 
+def test_expr8():
+    buildtest("DEBUG (1 + 2) * (1 + 2)", 9)
+
+def test_expr9():
+    buildtest("fun add(a, b) {return a + b;} DEBUG (add(1, 2) + 1) * 4", 16)
+
+def test_expr10():
+    buildtest("DEBUG 1+(2*(1+(2)))", 7)
+
+def test_expr11():
+    buildtest("DEBUG (((2)+1)*2)+1", 7)
+
+
 
 def test_shadow1():
     buildtest("var a = 1; {a = 2;} DEBUG a", 2)
