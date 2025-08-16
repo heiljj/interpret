@@ -13,6 +13,17 @@ class ContinueException(Exception):
     def __init__(self, *args):
         super().__init__(*args)
     
+class ClassObject():
+    def __init__(self, methods):
+        self.methods = methods
+    
+    def initiate(self, interpret):
+        return interpret.initiateClass(self)
+
+class ClassInstance():
+    def __init__(self, classobj: ClassObject):
+        self.scope = classobj.methods
+
 
 binops = {
     TokenType.OP_PLUS : lambda x, y : x + y,
@@ -47,7 +58,7 @@ class Interpreter:
     
     def endScope(self):
         self.scope -= 1
-        self.locals.pop()
+        return self.locals.pop()
     
     def decl(self, var):
         if self.scope == 0:
@@ -136,7 +147,6 @@ class Interpreter:
         
         return value
 
-    
     def resolveDebug(self, debug):
         value = debug.expr.resolve(self)
         self.debug_info = value
@@ -148,9 +158,6 @@ class Interpreter:
         self.endScope()
         return value
     
-    def resolveBlocks(self, blocks):
-        for block in blocks.blocks:
-            block.resolve(self)
     
     def resolveFunctionDecl(self, func):
         self.decl(func.name)
@@ -158,6 +165,9 @@ class Interpreter:
     
     def resolveFunctionCall(self, call):
         func = self.get(call.name)
+
+        if type(func) == ClassObject:
+            return func.initiate(self)
 
         self.beginScope()
 
@@ -220,13 +230,81 @@ class Interpreter:
         
         self.endScope()
             
-
     
     def resolveBreak(self, b):
         raise BreakException()
     
     def resolveContinue(self, c):
         raise ContinueException()
+    
+    def resolveClass(self, c):
+        methods = {}
+        for f in c.methods:
+            methods[f.name] = f
+        
+        self.decl(c.name)
+        self.set(c.name, ClassObject(methods))
+    
+    def initiateClass(self, c):
+        classinst = ClassInstance(c)
+        return classinst
+    
+    def resolveObjectGetter(self, c):
+        identifier = c.identifier
+        value = self.get(identifier)
+
+        if type(value) != ClassInstance:
+            raise Exception("ObjectGetter on non-class value")
+
+        properties = c.property_list
+        current_scope = value.scope
+
+        if len(properties) == 1:
+            return current_scope[properties[0]]
+
+        for i in range(len(properties)-1):
+            value = current_scope[properties[i]]
+
+            if type(value) != ClassInstance:
+                raise Exception("ObjectGetter on non-class value")
+
+            current_scope = value.scope
+        
+        return current_scope[properties[-1]]
+
+    def resolveObjectSetter(self, c):
+        identifier = c.identifier
+        value = self.get(identifier)
+        expr_value = c.expression.resolve(self)
+
+        if type(value) != ClassInstance:
+            raise Exception("ObjectSetter on non-class value")
+
+        properties = c.properties
+        current_scope = value.scope
+
+        if len(properties) == 1:
+            current_scope[properties[0]] = expr_value 
+            return expr_value
+
+        for i in range(len(properties)-1):
+            value = current_scope[properties[i]]
+
+            if type(value) != ClassInstance:
+                raise Exception("ObjectSetter on non-class value")
+
+            current_scope = value.scope
+        
+        current_scope[properties[-1]] = expr_value
+        return expr_value
+
+
+
+
+
+    
+
+
 
 
 

@@ -45,6 +45,9 @@ class TokenType(Enum):
     BREAK = 33
     RETURN = 34
 
+    CLASS = 35
+    DOT = 36
+
 class Token:
     def __init__(self, kind: TokenType, value=None):
         self.value = value
@@ -85,7 +88,10 @@ token_map = {
     "while" : TokenType.WHILE,
     "for" : TokenType.FOR,
     "break" : TokenType.BREAK,
-    "continue" : TokenType.CONTINUE
+    "continue" : TokenType.CONTINUE,
+
+    "class" : TokenType.CLASS,
+    "." : TokenType.DOT
 }
 
 reverse_token_map = dict(zip(token_map.values(), token_map.keys()))
@@ -210,7 +216,7 @@ class Tokenizer:
                 while self.isNext():
                     c = self.peek()
 
-                    if c == " " or c in "({!=;})+-/*,":
+                    if c == " " or c in "({!=;})+-/*,.":
                         break
 
                     chars += self.next()

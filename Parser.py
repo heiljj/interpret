@@ -32,6 +32,45 @@ class Block:
     def __str__(self):
         return f"{{{self.statements}}}"
 
+
+class Class:
+    def __init__(self, name, methods):
+        self.name = name
+        self.methods = methods
+    
+    def resolve(self, interpret):
+        return interpret.resolveClass(self)
+    
+    def __str__(self):
+        method_str = "".join(map(lambda x : str(x) + "\n", self.methods))
+        return f"class {self.name} {{{method_str}}}"
+
+class ObjectGetter:
+    def __init__(self, identifier, property_list):
+        self.identifier = identifier
+        self.property_list = property_list
+    
+    def resolve(self, interpret):
+        return interpret.resolveObjectGetter(self)
+
+class ObjectSetter:
+    def __init__(self, identifier, properties, expression):
+        self.identifier = identifier
+        self.properties = properties 
+        self.expression = expression
+    
+    def resolve(self, interpret):
+        return interpret.resolveObjectSetter(self)
+
+class ObjectMethodCall:
+    def __init__(self, identifier, properties, args):
+        self.identifier = identifier
+        self.properties = properties
+        self.args = args
+    
+    def resolve(self, interpret):
+        return interpret.resolve(self)
+
 class If:
     def __init__(self, cond, if_expr, else_expr):
         self.cond = cond
@@ -128,6 +167,7 @@ class FunctionCall:
             arg_str = arg_str[:-2]
         
         return f"{self.name}({arg_str})"
+    
 
 
 class VariableDeclAndSet:
@@ -413,8 +453,8 @@ def generateParseFor(prec, block_prec, var_decl_prec):
 
         return For(decl, cond, incr, block)
 
-    
     return parseFor
+
 
 def generateParseParns(prec, expr_prec):
     def parseParns(self):
@@ -449,6 +489,60 @@ def generateParseContinue(prec):
     
     return parseContinue
 
+
+def generateParseClass(prec, function_prec):
+    def parseClass(self):
+        if not self.tryMatch(TokenType.CLASS):
+            return self.parsePrec(prec + 1)
+        
+        name = self.match(TokenType.IDENTIFIER).value
+
+        self.match(TokenType.BRAC_LEFT)
+        methods = []
+
+
+        while self.peek().kind == TokenType.FUNC:
+            methods.append(self.parsePrec(function_prec))
+        
+        self.match(TokenType.BRAC_RIGHT)
+        return Class(name, methods)
+    
+    return parseClass
+
+def generateParseClassGetter(prec):
+    def parseClassGetter(self):
+        ret = self.parseProperties()
+
+        if not ret:
+            return self.parsePrec(prec + 1)
+        
+        identifier, properties = ret
+        
+        return ObjectGetter(identifier.value, properties)
+    
+    return parseClassGetter
+
+def generateParseClassSetter(prec, expr_prec):
+    def parseClassSetter(self):
+        saved_index = self.index
+
+        ret = self.parseProperties()
+        if not ret:
+            return self.parsePrec(prec + 1)
+        
+        identifier, properties = ret
+
+        if not self.tryMatch(TokenType.DECL_EQ):
+            self.index = saved_index
+            return self.parsePrec(prec + 1)
+        
+        expr = self.parsePrec(expr_prec)
+        self.match(TokenType.SEMI)
+        
+        return ObjectSetter(identifier.value, properties, expr)
+    
+    return parseClassSetter
+
 # statements -> (function | assignment | decl | block | statement)*
 
 # function -> identifier(identifier*) block
@@ -469,36 +563,40 @@ class Parser:
     def __init__(self, tokens: list[Token]):
         self.tokens = tokens
         self.index = 0
+        self.saved_index = 0
         self.end = len(self.tokens)
 
         self.parsers = [
             generateParseStatements(0),
-            generateParseFunctionDefinition(1, 5),
-            generateParseWhile(2, 5, 12),
-            generateParseFor(3, 5, 7),
-            generateParseIf(4, 5, 12),
-            generateParseBlock(5),
-            generateParseDebug(6),
-            generateParseVarDecl(7),
-            generateParseVarSet(8),
-            generateParseReturn(9, 10),
-            generateParseContinue(10),
-            generateParseBreak(11),
-            defineBinaryOpFunction(12, TokenType.OR),
-            defineBinaryOpFunction(13, TokenType.AND),
-            defineBinaryOpFunction(14, TokenType.COMP_EQ),
-            defineBinaryOpFunction(15, TokenType.COMP_NEQ),
-            defineBinaryOpFunction(16, TokenType.COMP_GT),
-            defineBinaryOpFunction(17, TokenType.COMP_LT),
-            defineBinaryOpFunction(18, TokenType.COMP_GT_EQ),
-            defineBinaryOpFunction(19, TokenType.COMP_LT_EQ),
-            defineBinaryOpFunction(20, TokenType.OP_PLUS),
-            defineBinaryOpFunction(21, TokenType.OP_MINUS),
-            defineBinaryOpFunction(22, TokenType.OP_MUL),
-            defineBinaryOpFunction(23, TokenType.OP_DIV),
-            generateParseFunctionCall(24, 12),
-            generateParseParns(25, 12),
-            generateParseValue(26, 12)
+            generateParseClass(1, 2),
+            generateParseFunctionDefinition(2, 6),
+            generateParseWhile(3, 6, 14),
+            generateParseFor(4, 6, 8),
+            generateParseIf(5, 6, 14),
+            generateParseBlock(6),
+            generateParseDebug(7),
+            generateParseVarDecl(8),
+            generateParseClassSetter(9, 14),
+            generateParseVarSet(10),
+            generateParseReturn(11, 10),
+            generateParseContinue(12),
+            generateParseBreak(13),
+            defineBinaryOpFunction(14, TokenType.OR),
+            defineBinaryOpFunction(15, TokenType.AND),
+            defineBinaryOpFunction(16, TokenType.COMP_EQ),
+            defineBinaryOpFunction(17, TokenType.COMP_NEQ),
+            defineBinaryOpFunction(18, TokenType.COMP_GT),
+            defineBinaryOpFunction(19, TokenType.COMP_LT),
+            defineBinaryOpFunction(20, TokenType.COMP_GT_EQ),
+            defineBinaryOpFunction(21, TokenType.COMP_LT_EQ),
+            defineBinaryOpFunction(22, TokenType.OP_PLUS),
+            defineBinaryOpFunction(23, TokenType.OP_MINUS),
+            defineBinaryOpFunction(24, TokenType.OP_MUL),
+            defineBinaryOpFunction(25, TokenType.OP_DIV),
+            generateParseFunctionCall(26, 14),
+            generateParseClassGetter(27),
+            generateParseParns(28, 14),
+            generateParseValue(29, 14)
         ]
 
         self.ast = self.parsePrec(0)
@@ -539,6 +637,25 @@ class Parser:
     
     def parsePrec(self, prec):
         return self.parsers[prec](self)
+    
+    def parseProperties(self):
+        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            return None
+        
+        if not self.tryMatch(TokenType.DOT):
+            self.previous()
+            return None
+        
+        property_list = []
+
+        while (prop_token := self.tryMatch(TokenType.IDENTIFIER)):
+            property_list.append(prop_token.value)
+
+            if not self.tryMatch(TokenType.DOT):
+                break
+        
+        return identifier, property_list
+        
 
 
 def parse(tokens: list[Token]):
