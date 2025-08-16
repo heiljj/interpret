@@ -1,5 +1,4 @@
 from Tokenizer import TokenType
-from Parser import Return
 
 class ReturnValue(Exception):
     def __init__(self, value):

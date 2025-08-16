@@ -190,7 +190,7 @@ class Value:
 
 
 # outside of parser class so it can follow the same format as generated functions 
-def generateParseValue(expression_prec):
+def generateParseValue(prec, expression_prec):
     def parseValue(self):
         token = self.next()
 
@@ -407,6 +407,17 @@ def generateParseFor(prec, block_prec, var_decl_prec):
     
     return parseFor
 
+def generateParseParns(prec, expr_prec):
+    def parseParns(self):
+        if not self.tryMatch(TokenType.PAR_LEFT):
+            return self.parsePrec(prec + 1)
+        
+        expr = self.parsePrec(expr_prec)
+        self.match(TokenType.PAR_RIGHT)
+        return expr
+    
+    return parseParns
+
 # statements -> (function | assignment | decl | block | statement)*
 
 # function -> identifier(identifier*) block
@@ -453,7 +464,8 @@ class Parser:
             defineBinaryOpFunction(20, TokenType.OP_MUL),
             defineBinaryOpFunction(21, TokenType.OP_DIV),
             generateParseFunctionCall(22, 10),
-            generateParseValue(10)
+            generateParseParns(23, 10),
+            generateParseValue(24, 10)
         ]
 
         self.ast = self.parsePrec(0)
