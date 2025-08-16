@@ -4,6 +4,14 @@ class ReturnValue(Exception):
     def __init__(self, value):
         super().__init__()
         self.value = value
+
+class BreakException(Exception):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+class ContinueException(Exception):
+    def __init__(self, *args):
+        super().__init__(*args)
     
 
 binops = {
@@ -189,7 +197,36 @@ class Interpreter:
 
     def resolveWhile(self, wh):
         while (wh.cond.resolve(self)):
-            wh.expr.resolve(self)
+            try:
+                wh.expr.resolve(self)
+            except BreakException:
+                break
+            except ContinueException:
+                continue
+    
+    def resolveFor(self, f):
+        self.beginScope()
+
+        f.decl.resolve(self)
+        while f.cond.resolve(self):
+            try:
+                f.block.resolve(self)
+            except BreakException:
+                break
+            except ContinueException:
+                pass
+
+            f.assign.resolve(self)
+        
+        self.endScope()
+            
+
+    
+    def resolveBreak(self, b):
+        raise BreakException()
+    
+    def resolveContinue(self, c):
+        raise ContinueException()
 
 
 

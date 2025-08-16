@@ -97,6 +97,12 @@ def test_loop2():
 def test_loop3():
     buildtest("var i = 0; for (var j = 0; j < 3; j = j + 1;) {for (var k = 0; k < 3; k = k + 1;) {i = j + k + i;}} DEBUG i", 18)
 
+def test_loop4():
+    buildtest("var i = 0; while(i < 5) {i = i + 1;if (i == 3) {break;}} DEBUG i", 3)
+
+def test_loop5():
+    buildtest("var i = 0; for (var j = 0; j < 5; j = j + 1;) {if (j == 3) {continue;} i = i + 1;} DEBUG i", 4)
+
 
 def test_repl():
     l1 = "var i = 1;"

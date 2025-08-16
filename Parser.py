@@ -57,6 +57,18 @@ class While:
     def __str__(self):
         return f"while ({self.cond}) {self.expr}"
 
+class For:
+    def __init__(self, decl, cond, assign, block):
+        self.decl = decl
+        self.cond = cond
+        self.assign = assign
+        self.block = block
+    
+    def resolve(self, interpret):
+        return interpret.resolveFor(self)
+    
+    def __str__(self):
+        return f"for ({self.decl}; {self.cond}; {self.assign}) {self.block}"
 
 class Continue:
     def resolve(self, interpret):
@@ -390,7 +402,7 @@ def generateParseFor(prec, block_prec, var_decl_prec):
 
         self.match(TokenType.PAR_LEFT)
 
-        assign = self.parsePrec(var_decl_prec)
+        decl = self.parsePrec(var_decl_prec)
         cond = self.parsePrec(var_decl_prec)
         self.match(TokenType.SEMI)
         incr = self.parsePrec(var_decl_prec)
@@ -399,11 +411,8 @@ def generateParseFor(prec, block_prec, var_decl_prec):
 
         block = self.parsePrec(block_prec)
 
-        while_body = Statements([block, incr])
-        while_loop = While(cond, while_body)
-        for_loop = Statements([assign, while_loop])
+        return For(decl, cond, incr, block)
 
-        return Block(for_loop)
     
     return parseFor
 
@@ -417,6 +426,28 @@ def generateParseParns(prec, expr_prec):
         return expr
     
     return parseParns
+
+def generateParseBreak(prec):
+    def parseBreak(self):
+        if not self.tryMatch(TokenType.BREAK):
+            return self.parsePrec(prec + 1)
+        
+        self.match(TokenType.SEMI)
+
+        return Break()
+    
+    return parseBreak
+
+def generateParseContinue(prec):
+    def parseContinue(self):
+        if not self.tryMatch(TokenType.CONTINUE):
+            return self.parsePrec(prec + 1)
+        
+        self.match(TokenType.SEMI)
+
+        return Continue()
+    
+    return parseContinue
 
 # statements -> (function | assignment | decl | block | statement)*
 
@@ -443,29 +474,31 @@ class Parser:
         self.parsers = [
             generateParseStatements(0),
             generateParseFunctionDefinition(1, 5),
-            generateParseWhile(2, 5, 10),
+            generateParseWhile(2, 5, 12),
             generateParseFor(3, 5, 7),
-            generateParseIf(4, 5, 10),
+            generateParseIf(4, 5, 12),
             generateParseBlock(5),
             generateParseDebug(6),
             generateParseVarDecl(7),
             generateParseVarSet(8),
             generateParseReturn(9, 10),
-            defineBinaryOpFunction(10, TokenType.OR),
-            defineBinaryOpFunction(11, TokenType.AND),
-            defineBinaryOpFunction(12, TokenType.COMP_EQ),
-            defineBinaryOpFunction(13, TokenType.COMP_NEQ),
-            defineBinaryOpFunction(14, TokenType.COMP_GT),
-            defineBinaryOpFunction(15, TokenType.COMP_LT),
-            defineBinaryOpFunction(16, TokenType.COMP_GT_EQ),
-            defineBinaryOpFunction(17, TokenType.COMP_LT_EQ),
-            defineBinaryOpFunction(18, TokenType.OP_PLUS),
-            defineBinaryOpFunction(19, TokenType.OP_MINUS),
-            defineBinaryOpFunction(20, TokenType.OP_MUL),
-            defineBinaryOpFunction(21, TokenType.OP_DIV),
-            generateParseFunctionCall(22, 10),
-            generateParseParns(23, 10),
-            generateParseValue(24, 10)
+            generateParseContinue(10),
+            generateParseBreak(11),
+            defineBinaryOpFunction(12, TokenType.OR),
+            defineBinaryOpFunction(13, TokenType.AND),
+            defineBinaryOpFunction(14, TokenType.COMP_EQ),
+            defineBinaryOpFunction(15, TokenType.COMP_NEQ),
+            defineBinaryOpFunction(16, TokenType.COMP_GT),
+            defineBinaryOpFunction(17, TokenType.COMP_LT),
+            defineBinaryOpFunction(18, TokenType.COMP_GT_EQ),
+            defineBinaryOpFunction(19, TokenType.COMP_LT_EQ),
+            defineBinaryOpFunction(20, TokenType.OP_PLUS),
+            defineBinaryOpFunction(21, TokenType.OP_MINUS),
+            defineBinaryOpFunction(22, TokenType.OP_MUL),
+            defineBinaryOpFunction(23, TokenType.OP_DIV),
+            generateParseFunctionCall(24, 12),
+            generateParseParns(25, 12),
+            generateParseValue(26, 12)
         ]
 
         self.ast = self.parsePrec(0)
