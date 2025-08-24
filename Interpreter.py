@@ -23,6 +23,10 @@ class ClassObject():
 class ClassInstance():
     def __init__(self, classobj: ClassObject):
         self.scope = dict(zip(classobj.methods.keys(), classobj.methods.values()))
+    
+    def call(root: ObjectCallMethod or ObjectGetProperty):
+        pass
+        # call resolveObjectCall
 
 
 binops = {
@@ -249,56 +253,29 @@ class Interpreter:
         classinst = ClassInstance(c)
         return classinst
     
-    def resolveObjectGetter(self, c):
-        identifier = c.identifier
-        value = self.get(identifier)
-
-        if type(value) != ClassInstance:
-            raise Exception("ObjectGetter on non-class value")
-
-        properties = c.property_list
-        current_scope = value.scope
-
-        if len(properties) == 1:
-            return current_scope[properties[0]]
-
-        for i in range(len(properties)-1):
-            value = current_scope[properties[i]]
-
-            if type(value) != ClassInstance:
-                raise Exception("ObjectGetter on non-class value")
-
-            current_scope = value.scope
+    def resolveObjectGetter(self, objg):
+        # look up class
+        # load scope
+        # return  resolve on objg.call
+        pass
+    
+    def resolveObjectCallMethod(self, objcallmethod):
+        # set scope
+        # value = resolve(fn call)
+        # if next:
+            # return next.resolve()
         
-        return current_scope[properties[-1]]
-
-    def resolveObjectSetter(self, c):
-        identifier = c.identifier
-        value = self.get(identifier)
-        expr_value = c.expression.resolve(self)
-
-        if type(value) != ClassInstance:
-            raise Exception("ObjectSetter on non-class value")
-
-        properties = c.properties
-        current_scope = value.scope
-
-        if len(properties) == 1:
-            current_scope[properties[0]] = expr_value 
-            return expr_value
-
-        for i in range(len(properties)-1):
-            value = current_scope[properties[i]]
-
-            if type(value) != ClassInstance:
-                raise Exception("ObjectSetter on non-class value")
-
-            current_scope = value.scope
+        # else return value
+        pass
         
-        current_scope[properties[-1]] = expr_value
-        return expr_value
-
-
+    def resolveObjectGetProperty(self, objgetproperty):
+        # get property
+        # if next:
+            # set scope to property 
+            # return next.resolve()
+        #else:
+            #return property
+        pass
 
 
 

@@ -45,22 +45,25 @@ class Class:
         method_str = "".join(map(lambda x : str(x) + "\n", self.methods))
         return f"class {self.name} {{{method_str}}}"
 
-class ObjectGetter:
-    def __init__(self, identifier, property_list):
+class ObjectGetterRoot:
+    def __init__(self, identifier, call):
         self.identifier = identifier
-        self.property_list = property_list
-    
-    def resolve(self, interpret):
-        return interpret.resolveObjectGetter(self)
+        # update scope to that of identifier
+        # then resolve call
+        # pop scope
+        self.call = call
 
-class ObjectSetter:
-    def __init__(self, identifier, properties, expression):
-        self.identifier = identifier
-        self.properties = properties 
-        self.expression = expression
-    
-    def resolve(self, interpret):
-        return interpret.resolveObjectSetter(self)
+class ObjectCallMethod:
+    def __init__(self, method, args, next_call=None):
+        self.method = method
+        self.args = args
+        self.next_call = next_call
+
+class ObjectGetProperty:
+    def __init__(self, property, next_call=None):
+        self.property = property
+        self.next_call = next_call
+
 
 class ObjectMethodCall:
     def __init__(self, identifier, properties, args):
@@ -509,46 +512,40 @@ def generateParseClass(prec, function_prec):
     
     return parseClass
 
-def generateParseClassGetter(prec):
-    def parseClassGetter(self):
-        ret = self.parseProperties()
-
-        if not ret:
-            return self.parsePrec(prec + 1)
-        
-        identifier, properties = ret
-        
-        return ObjectGetter(identifier.value, properties)
-    
-    return parseClassGetter
-
-def generateParseClassSetter(prec, expr_prec):
-    def parseClassSetter(self):
-        saved_index = self.index
-
-        #TODO need to combine get and set for things that return a class
-
-        ret = self.parseProperties()
-        if not ret:
-            return self.parsePrec(prec + 1)
-        
-        identifier, properties = ret
-
-        if not self.tryMatch(TokenType.DECL_EQ):
-            self.index = saved_index
-            return self.parsePrec(prec + 1)
-        
-        expr = self.parsePrec(expr_prec)
-        self.match(TokenType.SEMI)
-        
-        return ObjectSetter(identifier.value, properties, expr)
-    
-    return parseClassSetter
-
-def generateParseObjectMethodCall(prec):
+def generateParseObjectGet(prec, expression_prec):
     def parseObjectMethodCall(self):
+        index = self.index
 
+        if not (class_name := self.tryMatch(TokenType.IDENTIFIER)):
+            return self.parsePrec(prec + 1)
+        
+        if not self.tryMatch(TokenType.DOT):
+            self.index = index
+            return self.parsePrec(prec + 1)
+        
+        calls = []
 
+        while (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            if not self.tryMatch(TokenType.PAR_LEFT):
+                calls.append(ObjectGetProperty(identifier.value))
+            else:
+                args = []
+                while self.peek().kind != TokenType.PAR_RIGHT:
+                    args.append(self.parsePrec(expression_prec))
+
+                    if not self.tryMatch(TokenType.COMMA):
+                        break
+                
+                self.match(TokenType.PAR_RIGHT)
+                calls.append(ObjectCallMethod(identifier, args))
+        
+        root = ObjectGetterRoot(class_name.value)
+        root.call = calls[0]
+
+        for i in range(0, len(calls)-1):
+            calls[i].next = calls[i+1]
+        
+        return root
 
 # statements -> (function | assignment | decl | block | statement)*
 
