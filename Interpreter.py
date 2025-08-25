@@ -17,8 +17,8 @@ class ClassObject():
     def __init__(self, methods):
         self.methods = methods
     
-    def initiate(self, interpret):
-        return interpret.initiateClass(self)
+    def initiate(self, interpret, call):
+        return interpret.initiateClass(self, call)
 
 class ClassInstance():
     def __init__(self, classobj: ClassObject):
@@ -175,7 +175,7 @@ class Interpreter:
         func = self.get(call.name)
 
         if type(func) == ClassObject:
-            return func.initiate(self)
+            return func.initiate(self, call)
 
         self.beginScope()
 
@@ -253,12 +253,17 @@ class Interpreter:
         self.decl(c.name)
         self.set(c.name, ClassObject(methods))
     
-    def initiateClass(self, c):
+    def initiateClass(self, c, call):
         classinst = ClassInstance(c)
         classinst.scope["self"] = classinst
 
         if "init" in classinst.scope:
             self.addScope(classinst.scope)
+            parms = classinst.scope["init"].args
+
+            for i in range(len(call.args)):
+                self.decl(parms[i])
+                self.set(parms[i], call.args[i].resolve(self))
 
             classinst.scope["init"].block.resolve(self)
 

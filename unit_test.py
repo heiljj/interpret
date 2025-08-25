@@ -210,6 +210,30 @@ def test_class9():
         c.wrapper.wrapper = c.wrapper.wrapper + 1;
         DEBUG c.wrapper.get()""", 2)
 
+def test_class10():
+    buildtest("""
+        class C {
+            fun init(value) {
+                self.wrapper = value;
+            }
+        }
+
+        var c = C(10);
+        DEBUG c.wrapper
+        """, 10)
+
+def test_class11():
+    buildtest("""
+        class C {
+            fun init(value, value2) {
+                self.wrapper = value + value2;
+            }
+        }
+
+        var c = C(10, 5);
+        DEBUG c.wrapper
+    """, 15)
+
 def test_repl():
     l1 = "var i = 1;"
     l2 = "DEBUG i"
