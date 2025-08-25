@@ -66,7 +66,7 @@ class Interpreter:
     
     def addScope(self, scope):
         self.scope += 1
-        self.scopes.append(scope)
+        self.locals.append(scope)
     
     def decl(self, var):
         if self.scope == 0:
@@ -268,6 +268,9 @@ class Interpreter:
     
     def resolveObjectGetter(self, objg):
         instance = self.get(objg.identifier)
+
+        if objg.call == None:
+            return instance
 
         self.addScope(instance.scope)
         self.decl("self")

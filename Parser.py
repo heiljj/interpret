@@ -439,7 +439,7 @@ class Parser:
                 break
         
         if not self.tryMatch(TokenType.DECL_EQ):
-            index = self.index
+            self.index = index
             return self.parsePrec(prec + 1)
         
         for i in range(0, len(calls)-2):

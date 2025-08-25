@@ -35,6 +35,11 @@ def test_expr10():
 def test_expr11():
     buildtest("DEBUG (((2)+1)*2)+1", 7)
 
+def test_expr12():
+    buildtest("DEBUG 1 == 2 or 2 == 2", True)
+
+def test_expr13():
+    buildtest("var i = 1; DEBUG i == 1 or i == 0", True)
 
 
 def test_shadow1():
@@ -67,6 +72,9 @@ def test_fn4():
                 return fib(i-1) + fib(i-2); \
             }} DEBUG fib(" + str(i) + ")    \
         ", fib(i))
+
+def test_fn5():
+    buildtest("fun add(a, b) {return a + b;} DEBUG add(add(1, 2), add(3, 4))", 10)
 
 
 def test_if1():
@@ -102,6 +110,13 @@ def test_loop4():
 
 def test_loop5():
     buildtest("var i = 0; for (var j = 0; j < 5; j = j + 1;) {if (j == 3) {continue;} i = i + 1;} DEBUG i", 4)
+
+
+def test_class1():
+    buildtest("class c {} var i = c(); c.id = 1; DEBUG c.id", 1)
+
+def test_class2():
+    buildtest("class a {fun init() {self.value = 1;}} var c = a(); DEBUG a.value", 1)
 
 
 def test_repl():
