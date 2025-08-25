@@ -255,10 +255,10 @@ class Interpreter:
     
     def initiateClass(self, c):
         classinst = ClassInstance(c)
+        classinst.scope["self"] = classinst
+
         if "init" in classinst.scope:
-            self.beginScope()
-            self.decl("self")
-            self.set("self", classinst.scope)
+            self.addScope(classinst.scope)
 
             classinst.scope["init"].block.resolve(self)
 
@@ -273,8 +273,8 @@ class Interpreter:
             return instance
 
         self.addScope(instance.scope)
-        self.decl("self")
-        self.set("self", instance)
+        # self.decl("self")
+        # self.set("self", instance)
 
 
         value = objg.call.resolve(self)
@@ -285,7 +285,7 @@ class Interpreter:
     def resolveObjectCallMethod(self, objcallmethod):
         func = self.get(objcallmethod.method)
 
-        if len(func.args != objcallmethod.args):
+        if len(func.args) != len(objcallmethod.args):
             raise Exception("Wrong number of args")
         
         self.beginScope()
@@ -299,7 +299,7 @@ class Interpreter:
 
         self.endScope()
 
-        if not objcallmethod.next:
+        if not objcallmethod.next_call:
             return result
         
         if type(result) != ClassInstance:
@@ -307,8 +307,8 @@ class Interpreter:
         
         self.addScope(result.scope)
         self.beginScope()
-        self.decl("self")
-        self.set("set", result.scope)
+        # self.decl("self")
+        # self.set("set", result.scope)
 
         result = result.next_call.resolve(self)
 
@@ -324,8 +324,8 @@ class Interpreter:
         
         self.addScope(result.scope)
         self.beginScope()
-        self.decl("self")
-        self.set("self", result.scope)
+        # self.decl("self")
+        # self.set("self", result.scope)
 
         result = objgetproperty.next_call.resolve()
 

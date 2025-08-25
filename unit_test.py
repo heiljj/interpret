@@ -113,11 +113,16 @@ def test_loop5():
 
 
 def test_class1():
-    buildtest("class c {} var i = c(); c.id = 1; DEBUG c.id", 1)
+    buildtest("class c {} var i = c(); i.id = 1; DEBUG i.id", 1)
 
 def test_class2():
-    buildtest("class a {fun init() {self.value = 1;}} var c = a(); DEBUG a.value", 1)
+    buildtest("class a {fun init() {self.value = 1;}} var c = a(); DEBUG c.value", 1)
 
+def test_class3():
+    buildtest("class a {fun init() {self.value = 0;} fun inc() {self.value = self.value + 10;}} var c = a(); c.inc() DEBUG c.value", 10)
+
+def test_class4():
+    buildtest("class a {fun init() {self.value = 0;} fun inc() {self.value = self.value + 10;}} var c = a(); c.inc() c.inc() DEBUG c.value", 20)
 
 def test_repl():
     l1 = "var i = 1;"
