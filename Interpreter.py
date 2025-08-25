@@ -273,9 +273,6 @@ class Interpreter:
             return instance
 
         self.addScope(instance.scope)
-        # self.decl("self")
-        # self.set("self", instance)
-
 
         value = objg.call.resolve(self)
         self.endScope()
@@ -295,26 +292,33 @@ class Interpreter:
             self.decl(func.args[i])
             self.set(func.args[i], value)
         
-        result = func.block.resolve(self)
+        scope = self.scope
+        value = None
+
+        try:
+            value = func.block.resolve(self)
+        except ReturnValue as v:
+            value = v.value
+
+        while scope != self.scope:
+            self.endScope()
 
         self.endScope()
 
         if not objcallmethod.next_call:
-            return result
+            return value 
         
-        if type(result) != ClassInstance:
+        if type(value) != ClassInstance:
             raise Exception("Property call on value")
         
-        self.addScope(result.scope)
+        self.addScope(value.scope)
         self.beginScope()
-        # self.decl("self")
-        # self.set("set", result.scope)
 
-        result = result.next_call.resolve(self)
+        value = objcallmethod.next_call.resolve(self)
 
         self.endScope()
         self.endScope()
-        return result
+        return value
         
     def resolveObjectGetProperty(self, objgetproperty):
         result = self.get(objgetproperty.property)
@@ -324,10 +328,8 @@ class Interpreter:
         
         self.addScope(result.scope)
         self.beginScope()
-        # self.decl("self")
-        # self.set("self", result.scope)
 
-        result = objgetproperty.next_call.resolve()
+        result = objgetproperty.next_call.resolve(self)
 
         self.endScope()
         self.endScope()

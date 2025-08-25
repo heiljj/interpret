@@ -124,6 +124,92 @@ def test_class3():
 def test_class4():
     buildtest("class a {fun init() {self.value = 0;} fun inc() {self.value = self.value + 10;}} var c = a(); c.inc() c.inc() DEBUG c.value", 20)
 
+def test_class5():
+    buildtest("""
+        class C {
+            fun init() {
+                self.value = 1;
+            }
+
+            fun incr(amount) {
+                self.value = self.value + amount;
+            }
+
+            fun add(b) {
+                self.value = self.value + b.value;
+            }
+        }
+
+        var a = C();
+        a.incr(9)
+        var b = C();
+        a.add(b)
+        DEBUG a.value""", 11)
+
+def test_class6():
+    buildtest("""
+        class C {
+            fun init() {
+                self.value = 0;
+            }
+        }
+
+        fun incr() {
+            self.value = self.value + 1;
+        }
+
+        var c = C();
+        c.add = incr;
+        c.incr()
+        DEBUG c.value
+              """, 1)
+
+def test_class7():
+    buildtest("""
+        class C {
+            fun init() {
+                self.wrapper = 1;
+            }
+        }
+
+        var c = C();
+        c.wrapper = C();
+        c.wrapper.wrapper = c.wrapper.wrapper + 1;
+        DEBUG c.wrapper.wrapper""", 2)
+
+def test_class8():
+    buildtest("""
+        class C {
+            fun init() {
+                self.wrapper = 1;
+            }
+
+            fun get() {
+                return self.wrapper;
+            }
+        }
+
+        var c = C();
+        DEBUG c.get()
+        """, 1)
+
+def test_class9():
+    buildtest("""
+        class C {
+            fun init() {
+                self.wrapper = 1;
+            }
+
+            fun get() {
+                return self.wrapper;
+            }
+        }
+
+        var c = C();
+        c.wrapper = C();
+        c.wrapper.wrapper = c.wrapper.wrapper + 1;
+        DEBUG c.wrapper.get()""", 2)
+
 def test_repl():
     l1 = "var i = 1;"
     l2 = "DEBUG i"
