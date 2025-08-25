@@ -24,8 +24,8 @@ class ClassInstance():
     def __init__(self, classobj: ClassObject):
         self.scope = dict(zip(classobj.methods.keys(), classobj.methods.values()))
     
-    def call(root: ObjectCallMethod or ObjectGetProperty):
-        pass
+    # def call(root: ObjectCallMethod or ObjectGetProperty):
+    #     pass
         # call resolveObjectCall
 
 
@@ -63,6 +63,10 @@ class Interpreter:
     def endScope(self):
         self.scope -= 1
         return self.locals.pop()
+    
+    def addScope(self, scope):
+        self.scope += 1
+        self.scopes.append(scope)
     
     def decl(self, var):
         if self.scope == 0:
@@ -251,31 +255,87 @@ class Interpreter:
     
     def initiateClass(self, c):
         classinst = ClassInstance(c)
+        if "init" in classinst.scope:
+            self.beginScope()
+            self.decl("self")
+            self.set("self", classinst.scope)
+
+            classinst.scope["init"].block.resolve(self)
+
+            self.endScope()
         return classinst
+
     
     def resolveObjectGetter(self, objg):
-        # look up class
-        # load scope
-        # return  resolve on objg.call
-        pass
+        instance = self.get(objg.identifier)
+
+        self.addScope(instance.scope)
+        self.decl("self")
+        self.set("self", instance)
+
+
+        value = objg.call.resolve(self)
+        self.endScope()
+
+        return value
     
     def resolveObjectCallMethod(self, objcallmethod):
-        # set scope
-        # value = resolve(fn call)
-        # if next:
-            # return next.resolve()
+        func = self.get(objcallmethod.method)
+
+        if len(func.args != objcallmethod.args):
+            raise Exception("Wrong number of args")
         
-        # else return value
-        pass
+        self.beginScope()
+
+        for i in range(len(func.args)):
+            value = objcallmethod.args[i].resolve(self)
+            self.decl(func.args[i])
+            self.set(func.args[i], value)
+        
+        result = func.block.resolve(self)
+
+        self.endScope()
+
+        if not objcallmethod.next:
+            return result
+        
+        if type(result) != ClassInstance:
+            raise Exception("Property call on value")
+        
+        self.addScope(result.scope)
+        self.beginScope()
+        self.decl("self")
+        self.set("set", result.scope)
+
+        result = result.next_call.resolve(self)
+
+        self.endScope()
+        self.endScope()
+        return result
         
     def resolveObjectGetProperty(self, objgetproperty):
-        # get property
-        # if next:
-            # set scope to property 
-            # return next.resolve()
-        #else:
-            #return property
-        pass
+        result = self.get(objgetproperty.property)
+
+        if not objgetproperty.next_call:
+            return result 
+        
+        self.addScope(result.scope)
+        self.beginScope()
+        self.decl("self")
+        self.set("self", result.scope)
+
+        result = objgetproperty.next_call.resolve()
+
+        self.endScope()
+        self.endScope()
+
+        return result
+    
+    def resolveObjectSetter(self, objsetter):
+        obj = objsetter.objectgetterroot.resolve(self)
+        value = objsetter.expr.resolve(self)
+        obj.scope[objsetter.property] = value
+        return value
 
 
 
