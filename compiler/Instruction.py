@@ -51,6 +51,14 @@ class Div(RType):
     def __init__(self, rd, r1, r2):
         super().__init__(rd, r1, r2)
 
+class Slt(RType):
+    def __init__(self, rd, r1, r2):
+        super().__init__(rd, r1, r2)
+
+class SltU(RType):
+    def __init__(self, rd, r1, r2):
+        super().__init__(rd, r1, r2)
+
 
 class IType(Instruction):
     def __init__(self, rd, r1, imm):
@@ -76,6 +84,14 @@ class Jalr(IType):
         super().__init__(rd, r1, imm)
 
 class Lw(IType):
+    def __init__(self, rd, r1, imm):
+        super().__init__(rd, r1, imm)
+
+class Slti(IType):
+    def __init__(self, rd, r1, imm):
+        super().__init__(rd, r1, imm)
+
+class SltiU(IType):
     def __init__(self, rd, r1, imm):
         super().__init__(rd, r1, imm)
 

@@ -99,7 +99,12 @@ class Emu:
     def resolveAnd(self, and_):
         self.resolveRType(and_, lambda x, y : x.bitwiseAnd(y))
     
+    def resolveSlt(self, slt):
+        self.resolveRType(slt, lambda x, y : Binary(1) if x < y else Binary(0))
 
+    def resolveSltU(self, slt):
+        self.resolveRType(slt, lambda x, y : Binary(1) if x.uint() < y.uint() else Binary(0))
+    
     def resolveAddi(self, addi):
         r1_value = self.getReg(addi.r1)
         self.setReg(addi.rd, r1_value + addi.imm)
@@ -116,6 +121,16 @@ class Emu:
     def resolveJalr(self, jalr):
         self.setReg("rd", self.getReg("PC") + 4)
         self.setReg("pc", self.getReg(jalr.r1) + self.getReg(jalr.imm))
+    
+    def resolveSlti(self, slti):
+        r1_value = self.getReg(slti.r1)
+        res = Binary(1) if r1_value < slti.imm else Binary(0)
+        self.setReg(slti.rd, res)
+
+    def resolveSltiU(self, sltiU):
+        r1_value = self.getReg(sltiU.r1)
+        res = Binary(1) if r1_value.uint() < sltiU.imm.uint() else Binary(0)
+        self.setReg(sltiU.rd, res)
 
     def resolveBType(self, instr, cmp):
         r1_value = self.getReg(instr.r1)

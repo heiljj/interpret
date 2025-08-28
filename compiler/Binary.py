@@ -7,6 +7,13 @@ def bin2dec(s: str):
     
     return value
 
+def bin2decU(s: str):
+    value = 2 ** 31 * int(s[0])
+    for i in range(1, 32):
+        value += int(s[i]) * 2 ** (31 - i)
+    
+    return value
+
 def dec2bin(i: int):
     s = bin(i % 2 ** 32)
 
@@ -40,6 +47,9 @@ class Binary():
             return 
 
         self.value = i
+    
+    def uint(self):
+        return bin2decU(self.value)
     
     def __iter__(self):
         return iter(self.value)
@@ -96,7 +106,7 @@ class Binary():
         return Binary(int(self) // int(o))
 
     def bitwise(self, o, op):
-        return "".join(map(op), self.value, o.value)
+        return "".join(map(op, self.value, o.value))
     
     def bitwiseAnd(self, o):
         value = self.bitwise(o, lambda x, y : "1" if x == "1" and y == "1" else "0")
@@ -107,6 +117,6 @@ class Binary():
         return Binary(value)
     
     def bitwiseXor(self, o):
-        value = self.bitwise(o, lambda x, y : 1 if x == "1" or y == "1" and x != y else "0")
+        value = self.bitwise(o, lambda x, y : "1" if (x == "1" or y == "1") and x != y else "0")
         return Binary(value)
     
