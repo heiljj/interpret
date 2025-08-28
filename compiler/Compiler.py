@@ -93,6 +93,9 @@ class Compiler:
     def resolveValue(self, value):
         if value.type == TokenType.NUM:
             return self.pushValue(Binary(value.value))
+        
+        if value.type == TokenType.BOOL:
+            return self.pushValue(Binary(int(value.value)))
 
         raise NotImplementedError
             
@@ -158,7 +161,14 @@ class Compiler:
         instr.append(Addi("sp", "sp", -4))
         return instr
     
+    def resolveDebug(self, debug):
+        instr = debug.expr.resolve(self)
+        instr.append(Debug())
+        return instr
+    
     def resolveBlock(self, block):
+        self.beginScope()
+
         stack_start = self.current_stack
 
         instr = [Comment("#block start")]
@@ -168,6 +178,9 @@ class Compiler:
         stack_diff = 4 * (stack_start - self.current_stack)
         instr.append(Addi("sp", "sp", stack_diff))
         instr.append(Comment("#END block"))
+        self.current_stack = stack_start
+
+        self.endScope()
         return instr
 
 

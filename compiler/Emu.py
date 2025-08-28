@@ -22,11 +22,15 @@ register_name_to_num = {"x0":0, "zero":0, "x1":1, "ra":1,
 
 class Emu:
     def __init__(self, instrs, debug=False):
-        self.debug = debug
         self.instrs = instrs
+
         self.index = 0
         self.regs = [Binary(ZERO) for _ in range(33)]
         self.mem = [Binary(ZERO) for _ in range(1000)]
+
+        self.debug = debug
+        self.debug_info = None
+
         self.stop = False
 
     def getReg(self, reg_name):
@@ -135,7 +139,10 @@ class Emu:
         index = addr // 4
         self.mem[index] = self.getReg(sw.r2)
     
+    def resolveDebug(self, debug):
+        self.debug_info = int(self.mem[(int(self.getReg("sp")) - 4) // 4])
 
+    
     def resolveJal(self, jal):
         self.setReg(jal.rd, self.getReg("PC") + 4)
         self.setReg("PC", jal.imm + 4)
