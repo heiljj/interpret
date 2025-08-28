@@ -43,6 +43,14 @@ class And(RType):
     def __init__(self, rd, r1, r2):
         super().__init__(rd, r1, r2)
 
+class Mul(RType):
+    def __init__(self, rd, r1, r2):
+        super().__init__(rd, r1, r2)
+
+class Div(RType):
+    def __init__(self, rd, r1, r2):
+        super().__init__(rd, r1, r2)
+
 
 class IType(Instruction):
     def __init__(self, rd, r1, imm):
@@ -142,6 +150,11 @@ class Sw(SType):
 class Stop(Instruction):
     def __init__(self):
         super().__init__()
+
+class Debug(Instruction):
+    def __init__(self):
+        super().__init__()
+
     
 
 

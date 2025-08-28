@@ -154,6 +154,9 @@ class Interpreter:
             value = s.resolve(self)
         
         return value
+    
+    def resolveExprStatement(self, stmt):
+        return stmt.s.resolve(self)
 
     def resolveDebug(self, debug):
         value = debug.expr.resolve(self)
