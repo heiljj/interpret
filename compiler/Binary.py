@@ -22,9 +22,18 @@ def dec2bin(i: int):
 @total_ordering
 class Binary():
     def __init__(self, i):
+        if type(i) == float:
+            
+            if i % 1 != 0:
+                raise NotImplementedError
+
+            i = int(i)
+
         if type(i) == int:
             self.value = dec2bin(i)
             return
+
+        
 
         if len(i) != 32:
             self.value = dec2bin(int(i))

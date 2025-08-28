@@ -46,6 +46,7 @@ class Emu:
             raise Exception("Bad pc")
 
         instr = self.instrs[pc // 4]
+        print(instr)
         instr.resolve(self)
         self.addPC(4)
     
@@ -57,6 +58,9 @@ class Emu:
             i += 1
             if i > 1000:
                 raise Exception("Loop")
+    
+    def resolveComment(self, instr):
+        pass
     
     def resolveStop(self, instr):
         self.stop = True
@@ -87,9 +91,18 @@ class Emu:
         r1_value = self.getReg(addi.r1)
         self.setReg(addi.rd, r1_value + addi.imm)
     
+    def resolveLw(self, lw):
+        addr = int(self.getReg(lw.r1) + lw.imm)
+
+        if addr % 4 != 0:
+            raise Exception("Bad address")
+        
+        index = addr // 4
+        self.setReg(lw.rd, self.mem[index])
+    
     def resolveJalr(self, jalr):
         self.setReg("rd", self.getReg("PC") + 4)
-        self.setReg("pc", self.getReg(jalr.rs1) + self.getReg(jalr.imm))
+        self.setReg("pc", self.getReg(jalr.r1) + self.getReg(jalr.imm))
 
     def resolveBType(self, instr, cmp):
         r1_value = self.getReg(instr.r1)
@@ -108,6 +121,16 @@ class Emu:
     
     def resolveBge(self, bge):
         self.resolveBType(bge, lambda x, y : x >= y)
+
+
+    def resolveSw(self, sw):
+        addr = int(self.getReg(sw.r1) + sw.imm)
+
+        if addr % 4 != 0:
+            raise Exception("Bad address")
+        
+        index = addr // 4
+        self.mem[index] = self.getReg(sw.r2)
     
 
     def resolveJal(self, jal):

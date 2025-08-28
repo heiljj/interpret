@@ -5,6 +5,13 @@ class Instruction:
         attr = emu.__getattribute__(f"resolve{type(self).__name__}")
         attr(self)
 
+class Comment(Instruction):
+    def __init__(self, text):
+        self.text = text
+    
+    def __str__(self):
+        return self.text
+
 
 class RType(Instruction):
     def __init__(self, rd, r1, r2):
@@ -42,7 +49,11 @@ class IType(Instruction):
         super().__init__()
         self.rd = rd
         self.r1 = r1
-        self.imm = Binary(imm)
+
+        if type(imm) != Binary:
+            imm = Binary(imm)
+            
+        self.imm = imm
     
     def __str__(self):
         op = type(self).__name__.lower()
@@ -56,12 +67,19 @@ class Jalr(IType):
     def __init__(self, rd, r1, imm):
         super().__init__(rd, r1, imm)
 
+class Lw(IType):
+    def __init__(self, rd, r1, imm):
+        super().__init__(rd, r1, imm)
 
 class BType(Instruction):
     def __init__(self, r1, r2, imm):
         self.r1 = r1
         self.r2 = r2
-        self.imm = Binary(imm)
+        
+        if type(imm) != Binary:
+            imm = Binary(imm)
+
+        self.imm = imm
     
     def __str__(self):
         op = type(self).__name__.lower()
@@ -92,7 +110,11 @@ class JType(Instruction):
     def __init__(self, rd, imm):
         super().__init__()
         self.rd = rd
-        self.imm = Binary(imm)
+
+        if type(imm) != Binary:
+            imm = Binary(imm)
+
+        self.imm = imm
 
     def __str__(self):
         op = type(self).__name__.lower()
@@ -102,6 +124,20 @@ class Jal(JType):
     def __init__(self, rd, imm):
         super().__init__(rd, imm)
 
+
+class SType(Instruction):
+    def __init__(self, r1, r2, imm):
+        self.r1 = r1
+        self.r2 = r2
+        self.imm = imm
+
+    def __str__(self):
+        op = type(self).__name__.lower()
+        return f"{op} {self.r1} {self.r2} {self.imm}"
+
+class Sw(SType):
+    def __init__(self, r1, r2, imm):
+        super().__init__(r1, r2, imm)
 
 class Stop(Instruction):
     def __init__(self):
