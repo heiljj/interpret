@@ -114,6 +114,10 @@ class Compiler:
                 op_type = Add
             case TokenType.OP_MINUS:
                 op_type = Sub
+            case TokenType.OP_MUL:
+                op_type = Mul
+            case TokenType.OP_DIV:
+                op_type = Div
             case _:
                 raise NotImplementedError
         

@@ -88,6 +88,12 @@ class Binary():
     
     def __lt__(self, o):
         return int(self) < int(o)
+    
+    def __mul__(self, o):
+        return Binary(int(self) * int(o))
+
+    def __div__(self, o):
+        return Binary(int(self) // int(o))
 
     def bitwise(self, o, op):
         return "".join(map(op), self.value, o.value)

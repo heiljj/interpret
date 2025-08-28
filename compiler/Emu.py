@@ -84,6 +84,12 @@ class Emu:
     def resolveSub(self, sub):
         self.resolveRType(sub, lambda x, y : x - y)
     
+    def resolveMul(self, mul):
+        self.resolveRType(mul, lambda x, y : x * y)
+    
+    def resolveDiv(self, div):
+        self.resolveRType(div, lambda x, y : x / y)
+    
     def resolveXor(self, xor):
         self.resolveRType(xor, lambda x, y : x.bitwiseXor(y))
 
