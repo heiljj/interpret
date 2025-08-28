@@ -21,7 +21,8 @@ register_name_to_num = {"x0":0, "zero":0, "x1":1, "ra":1,
                         }
 
 class Emu:
-    def __init__(self, instrs):
+    def __init__(self, instrs, debug=False):
+        self.debug = debug
         self.instrs = instrs
         self.index = 0
         self.regs = [Binary(ZERO) for _ in range(33)]
@@ -46,7 +47,9 @@ class Emu:
             raise Exception("Bad pc")
 
         instr = self.instrs[pc // 4]
-        print(instr)
+        if self.debug:
+            print(instr)
+
         instr.resolve(self)
         self.addPC(4)
     
@@ -108,7 +111,7 @@ class Emu:
         r1_value = self.getReg(instr.r1)
         r2_value = self.getReg(instr.r2)
         if cmp(r1_value, r2_value):
-            self.addPC(int(instr.imm))
+            self.addPC(int(instr.imm) - 4)
     
     def resolveBeq(self, beq):
         self.resolveBType(beq, lambda x, y : x == y)
