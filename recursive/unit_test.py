@@ -3,62 +3,62 @@ from Parser import parse
 from Interpreter import Interpreter
 
 def test_expr1():
-    buildtest("DEBUG true", True)
+    buildtest("DEBUG true;", True)
 
 def test_expr2():
-    buildtest("DEBUG false", False)
+    buildtest("DEBUG false;", False)
 
 def test_expr3():
-    buildtest("DEBUG false and true", False)
+    buildtest("DEBUG false and true;", False)
 
 def test_expr4():
-    buildtest("DEBUG false or true", True)
+    buildtest("DEBUG false or true;", True)
 
 def test_expr5():
-    buildtest("DEBUG 1 + 2", 3)
+    buildtest("DEBUG 1 + 2;", 3)
 
 def test_expr6():
-    buildtest("DEBUG 1 + 2 * 3", 7)
+    buildtest("DEBUG 1 + 2 * 3;", 7)
 
 def test_expr7():
-    buildtest("DEBUG 1 * 2 + 3", 5)
+    buildtest("DEBUG 1 * 2 + 3;", 5)
 
 def test_expr8():
-    buildtest("DEBUG (1 + 2) * (1 + 2)", 9)
+    buildtest("DEBUG (1 + 2) * (1 + 2);", 9)
 
 def test_expr9():
-    buildtest("fun add(a, b) {return a + b;} DEBUG (add(1, 2) + 1) * 4", 16)
+    buildtest("fun add(a, b) {return a + b;} DEBUG (add(1, 2) + 1) * 4;", 16)
 
 def test_expr10():
-    buildtest("DEBUG 1+(2*(1+(2)))", 7)
+    buildtest("DEBUG 1+(2*(1+(2)));", 7)
 
 def test_expr11():
-    buildtest("DEBUG (((2)+1)*2)+1", 7)
+    buildtest("DEBUG (((2)+1)*2)+1;", 7)
 
 def test_expr12():
-    buildtest("DEBUG 1 == 2 or 2 == 2", True)
+    buildtest("DEBUG 1 == 2 or 2 == 2;", True)
 
 def test_expr13():
-    buildtest("var i = 1; DEBUG i == 1 or i == 0", True)
+    buildtest("var i = 1; DEBUG i == 1 or i == 0;", True)
 
 
 def test_shadow1():
-    buildtest("var a = 1; {a = 2;} DEBUG a", 2)
+    buildtest("var a = 1; {a = 2;} DEBUG a;", 2)
 
 def test_shadow2():
-    buildtest("var a = 1; {var a = 2;} DEBUG a", 1)
+    buildtest("var a = 1; {var a = 2;} DEBUG a;", 1)
 
 def test_shadow3():
-    buildtest("fun test() {var a = 2;} var a = 1; test() DEBUG a", 1)
+    buildtest("fun test() {var a = 2;} var a = 1; test(); DEBUG a;", 1)
 
 def test_fn1():
-    buildtest("fun test(a) {return a;} DEBUG test(1)", 1)
+    buildtest("fun test(a) {return a;} DEBUG test(1);", 1)
 
 def test_fn2():
-    buildtest("fun test(a, b) {return a + b;} DEBUG test(1, 2)", 3)
+    buildtest("fun test(a, b) {return a + b;} DEBUG test(1, 2);", 3)
 
 def test_fn3():
-    buildtest("fun test(a) {return a;} DEBUG test(1) + test(2)", 3)
+    buildtest("fun test(a) {return a;} DEBUG test(1) + test(2);", 3)
 
 def test_fn4():
     def fib(i):
@@ -70,59 +70,59 @@ def test_fn4():
                 return 1;                   \
             } else {                        \
                 return fib(i-1) + fib(i-2); \
-            }} DEBUG fib(" + str(i) + ")    \
+            }} DEBUG fib(" + str(i) + ");   \
         ", fib(i))
 
 def test_fn5():
-    buildtest("fun add(a, b) {return a + b;} DEBUG add(add(1, 2), add(3, 4))", 10)
+    buildtest("fun add(a, b) {return a + b;} DEBUG add(add(1, 2), add(3, 4));", 10)
 
 
 def test_if1():
-    buildtest("if (true) {DEBUG 1}", 1)
+    buildtest("if (true) {DEBUG 1;}", 1)
 
 def test_if2():
-    buildtest("if (false) {DEBUG 1}", None)
+    buildtest("if (false) {DEBUG 1;}", None)
 
 def test_if3():
-    buildtest("if (true) {DEBUG 1} else {DEBUG 2}", 1)
+    buildtest("if (true) {DEBUG 1;} else {DEBUG 2;}", 1)
 
 def test_if4():
-    buildtest("if (false) {DEBUG 1} else {DEBUG 2}", 2)
+    buildtest("if (false) {DEBUG 1;} else {DEBUG 2;}", 2)
 
 def test_if5():
-    buildtest("if (1 > 0) {DEBUG 1} else {DEBUG 2}", 1)
+    buildtest("if (1 > 0) {DEBUG 1;} else {DEBUG 2;}", 1)
 
 def test_if6():
-    buildtest("fun test() {return true;} if (test()) {DEBUG 1} else {DEBUG 2}", 1)
+    buildtest("fun test() {return true;} if (test()) {DEBUG 1;} else {DEBUG 2;}", 1)
 
 
 def test_loop1():
-    buildtest("var i = 0; while(i < 5) {i = i + 1;} DEBUG i", 5)
+    buildtest("var i = 0; while(i < 5) {i = i + 1;} DEBUG i;", 5)
 
 def test_loop2():
-    buildtest("var i = 0; for (var j = 0; j < 5; j = j + 1;) {i = i + 1;} DEBUG i", 5)
+    buildtest("var i = 0; for (var j = 0; j < 5; j = j + 1;) {i = i + 1;} DEBUG i;", 5)
 
 def test_loop3():
-    buildtest("var i = 0; for (var j = 0; j < 3; j = j + 1;) {for (var k = 0; k < 3; k = k + 1;) {i = j + k + i;}} DEBUG i", 18)
+    buildtest("var i = 0; for (var j = 0; j < 3; j = j + 1;) {for (var k = 0; k < 3; k = k + 1;) {i = j + k + i;}} DEBUG i;", 18)
 
 def test_loop4():
-    buildtest("var i = 0; while(i < 5) {i = i + 1;if (i == 3) {break;}} DEBUG i", 3)
+    buildtest("var i = 0; while(i < 5) {i = i + 1;if (i == 3) {break;}} DEBUG i;", 3)
 
 def test_loop5():
-    buildtest("var i = 0; for (var j = 0; j < 5; j = j + 1;) {if (j == 3) {continue;} i = i + 1;} DEBUG i", 4)
+    buildtest("var i = 0; for (var j = 0; j < 5; j = j + 1;) {if (j == 3) {continue;} i = i + 1;} DEBUG i;", 4)
 
 
 def test_class1():
-    buildtest("class c {} var i = c(); i.id = 1; DEBUG i.id", 1)
+    buildtest("class c {} var i = c(); i.id = 1; DEBUG i.id;", 1)
 
 def test_class2():
-    buildtest("class a {fun init() {self.value = 1;}} var c = a(); DEBUG c.value", 1)
+    buildtest("class a {fun init() {self.value = 1;}} var c = a(); DEBUG c.value;", 1)
 
 def test_class3():
-    buildtest("class a {fun init() {self.value = 0;} fun inc() {self.value = self.value + 10;}} var c = a(); c.inc() DEBUG c.value", 10)
+    buildtest("class a {fun init() {self.value = 0;} fun inc() {self.value = self.value + 10;}} var c = a(); c.inc(); DEBUG c.value;", 10)
 
 def test_class4():
-    buildtest("class a {fun init() {self.value = 0;} fun inc() {self.value = self.value + 10;}} var c = a(); c.inc() c.inc() DEBUG c.value", 20)
+    buildtest("class a {fun init() {self.value = 0;} fun inc() {self.value = self.value + 10;}} var c = a(); c.inc(); c.inc(); DEBUG c.value;", 20)
 
 def test_class5():
     buildtest("""
@@ -141,10 +141,10 @@ def test_class5():
         }
 
         var a = C();
-        a.incr(9)
+        a.incr(9);
         var b = C();
-        a.add(b)
-        DEBUG a.value""", 11)
+        a.add(b);
+        DEBUG a.value;""", 11)
 
 def test_class6():
     buildtest("""
@@ -160,8 +160,8 @@ def test_class6():
 
         var c = C();
         c.add = incr;
-        c.incr()
-        DEBUG c.value
+        c.incr();
+        DEBUG c.value;
               """, 1)
 
 def test_class7():
@@ -175,7 +175,7 @@ def test_class7():
         var c = C();
         c.wrapper = C();
         c.wrapper.wrapper = c.wrapper.wrapper + 1;
-        DEBUG c.wrapper.wrapper""", 2)
+        DEBUG c.wrapper.wrapper;""", 2)
 
 def test_class8():
     buildtest("""
@@ -190,7 +190,7 @@ def test_class8():
         }
 
         var c = C();
-        DEBUG c.get()
+        DEBUG c.get();
         """, 1)
 
 def test_class9():
@@ -208,7 +208,7 @@ def test_class9():
         var c = C();
         c.wrapper = C();
         c.wrapper.wrapper = c.wrapper.wrapper + 1;
-        DEBUG c.wrapper.get()""", 2)
+        DEBUG c.wrapper.get();""", 2)
 
 def test_class10():
     buildtest("""
@@ -219,7 +219,7 @@ def test_class10():
         }
 
         var c = C(10);
-        DEBUG c.wrapper
+        DEBUG c.wrapper;
         """, 10)
 
 def test_class11():
@@ -231,12 +231,12 @@ def test_class11():
         }
 
         var c = C(10, 5);
-        DEBUG c.wrapper
+        DEBUG c.wrapper;
     """, 15)
 
 def test_repl():
     l1 = "var i = 1;"
-    l2 = "DEBUG i"
+    l2 = "DEBUG i;"
 
     tokens1 = tokenize(l1)
     tokens2 = tokenize(l2)
@@ -251,34 +251,34 @@ def test_repl():
 
 
 def test1():
-    buildtest("DEBUG 1 + 2 + 3", 6)
+    buildtest("DEBUG 1 + 2 + 3;", 6)
 
 def test2():
-    buildtest("DEBUG 1 + 2 * 3", 7)
+    buildtest("DEBUG 1 + 2 * 3;", 7)
 
 def test3():
-    buildtest("DEBUG 3 < 6 and 4 > 2", True)
+    buildtest("DEBUG 3 < 6 and 4 > 2;", True)
 
 def test4():
-    buildtest("DEBUG 1 == 1 and 1 == 1 or 1 != 2", True)
+    buildtest("DEBUG 1 == 1 and 1 == 1 or 1 != 2;", True)
 
 def test5():
-    buildtest("var abc = 1;{abc = 2 + 3;}DEBUG abc", 5)
+    buildtest("var abc = 1;{abc = 2 + 3;}DEBUG abc;", 5)
 
 def test6():
-    buildtest("var abc = 1;{var abc = 2 + 3;}DEBUG abc", 1)
+    buildtest("var abc = 1;{var abc = 2 + 3;}DEBUG abc;", 1)
 
 def test7():
-    buildtest("fun name() {var a = 1; {a = 2;} DEBUG a} name()", 2)
+    buildtest("fun name() {var a = 1; {a = 2;} DEBUG a;} name();", 2)
 
 def test8():
-    buildtest("fun db(a) {DEBUG a} db(1)", 1)
+    buildtest("fun db(a) {DEBUG a;} db(1);", 1)
 
 def test9():
-    buildtest("fun db(a) {return a;} DEBUG db(1) + db(10)", 11)
+    buildtest("fun db(a) {return a;} DEBUG db(1) + db(10);", 11)
 
 def test10():
-    buildtest("fun add(a, b) {return a + b;} DEBUG add(1, 2)", 3)
+    buildtest("fun add(a, b) {return a + b;} DEBUG add(1, 2);", 3)
 
 def buildtest(text: str, res):
     tokens = tokenize(text)
