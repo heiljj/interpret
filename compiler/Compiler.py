@@ -107,21 +107,54 @@ class Compiler:
         right_value = self.pop("t1")
         left_value = self.pop("t0")
         
-        op_type = None
+        op_instr = None
 
         match op.op:
             case TokenType.OP_PLUS:
-                op_type = Add
+                op_instr = [Add("t0", "t0", "t1")]
             case TokenType.OP_MINUS:
-                op_type = Sub
+                op_instr = [Sub("t0", "t0", "t1")]
             case TokenType.OP_MUL:
-                op_type = Mul
+                op_instr = [Mul("t0", "t0", "t1")]
             case TokenType.OP_DIV:
-                op_type = Div
+                op_instr = [Div("t0", "t0", "t1")]
+            case TokenType.COMP_EQ:
+                op_instr = [Xor("t0", "t0", "t1"),
+                            SltiU("t0", "t0", 1)]
+
+            case TokenType.COMP_NEQ:
+                op_instr = [Xor("t0", "t0", "t1"),
+                            SltU("t0", "x0", "t0")]
+
+            case TokenType.COMP_GT:
+                op_instr = [Sub("t0", "t0", "t1"),
+                            Slt("t0", "x0", "t0")]
+
+            case TokenType.COMP_LT:
+                op_instr = [Sub("t0", "t1", "t0"),
+                            Slt("t0", "x0", "t0")]
+
+            case TokenType.COMP_GT_EQ:
+                op_instr = [Sub("t0", "t1", "t0"),
+                            Addi("t1", "x0", 1),
+                            Slt("t0", "t0", "t1")]
+
+            case TokenType.COMP_LT_EQ:
+                op_instr = [Sub("t0", "t0", "t1"),
+                            Addi("t1", "x0", 1),
+                            Slt("t0", "t0", "t1")]
+            
+            case TokenType.OR:
+                op_instr = [Or("t0", "t0", "t1"),
+                            SltU("t0", "x0", "t0")]
+            
+            case TokenType.AND:
+                op_instr = [And("t0", "t0", "t1"),
+                            SltU("t0", "x0", "t0")]
+
             case _:
                 raise NotImplementedError
         
-        op_instr = [op_type("t0", "t0", "t1")]
         push = self.pushReg("t0")
         c2 = [Comment(f"#END binaryop {op.left} {op.op.name} {op.right}")]
         return c1 + left + right + right_value + left_value + op_instr + push + c2
