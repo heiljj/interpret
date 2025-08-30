@@ -86,8 +86,19 @@ def test_if1():
     buildtest("if (1 == 1) {DEBUG 1;}", 1)
     buildtest("if (0 == 1) {ERR;}", None)
 
+def test_if2():
     buildtest("var a = 1; if (1) {a = 2;} else {ERR;} DEBUG a;", 2)
+    buildtest("var a = 1; if (0) {ERR;} else {a = 3;} DEBUG a;", 3)
+    buildtest("var a = 1; if (1) {var a = 2;} DEBUG a;", 1)
 
+def test_while1():
+    buildtest("var a = 0; while (0) {ERR;} a = 1; DEBUG a;", 1)
+    buildtest("var a = 0; while (0) {a = a + 1;} DEBUG a;", 0)
+    buildtest("var a = 0; while (a < 10) {a = a + 1;} DEBUG a;", 10)
+    buildtest("var a = 10; while (a != 0) {a = a - 1;} DEBUG a;", 0)
+
+def test_for1():
+    buildtest("for(var j = 0; j = j + 1; j != 0) {ERR;}", None)
 
 
 def test_expr_old5():

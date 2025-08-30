@@ -251,6 +251,36 @@ class Compiler:
             cond.append(Comment("#IF cond end"))
             return cond + if_expr
 
+    def resolveWhile(self, wh):
+        cond = [Comment(f"#WHILE {wh.cond}")]
+        cond += wh.cond.resolve(self)
+        cond += self.pop("t0")
+
+        block = wh.expr.resolve(self)
+        block.append(Beq("x0", "x0", - 4 * len(block) - 4 * len(cond) - 4))
+        block.append(Comment("#END while"))
+        cond.append(Beq("t0", "x0", 4 * len(block) + 4))
+        return cond + block
+    
+    def resolveFor(self, for_):
+        self.beginScope()
+        decl = [Comment("#FOR")]
+        decl += for_.decl.resolve(self)
+
+        cond = [Comment("#COND start")]
+        cond += for_.cond.resolve(self)
+        cond.append(self.pop("t0"))
+        cond.append(Comment("#COND end"))
+
+        block = for_.block.resolve(self)
+        block += for_.assign.resolve(self)
+        block.append(Beq("x0", "x0", -4 * len(cond)))
+
+        cond.append(Beq("t0", "x0", 4 * len(block) + 4))
+        
+        return decl + cond + block
+
+
 
 def comp(ast):
     c = Compiler(ast)
