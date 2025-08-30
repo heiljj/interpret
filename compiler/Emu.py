@@ -161,8 +161,7 @@ class Emu:
         self.mem[index] = self.getReg(sw.r2)
     
     def resolveDebug(self, debug):
-        self.setReg("sp", self.getReg("sp") - 4)
-        self.debug_info = int(self.mem[int(self.getReg("sp")) // 4])
+        self.debug_info = int(self.mem[(int(self.getReg("sp")) - 4) // 4])
 
     
     def resolveJal(self, jal):

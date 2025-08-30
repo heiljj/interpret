@@ -211,6 +211,7 @@ class Compiler:
     def resolveExprStatement(self, exprs):
         instr = exprs.s.resolve(self)
         instr += Addi("sp", "sp", -4)
+        self.current_stack -= 1
         return instr
     
     def resolveDebug(self, debug):
