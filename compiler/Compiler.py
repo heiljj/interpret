@@ -10,9 +10,15 @@ class Compiler:
 
         self.globals = {}
         self.locals = []
+
+        self.function_instr = Instructions()
+        self.functions = {}
     
     def run(self):
-        return self.ast.resolve(self) + Stop()
+        instr = self.ast.resolve(self) + Stop()
+
+        start = Instructions(Jal("x0", len(self.function_instr) * 4 + 4))
+        return start + self.function_instr + instr
     
     def beginScope(self):
         self.locals.append({})
@@ -21,26 +27,22 @@ class Compiler:
         return self.locals.pop()
     
     def decl(self, var):
+        self.bindPosition(var, 0)
+        self.current_stack += 1
+    
+    def bindPosition(self, varname, rel_stack_pos):
         if self.locals:
-            self.declLocal(var)
+            locals = self.locals[-1]
+
+            if varname in locals:
+                raise Exception("Variable already bound")
+
+            locals[varname] = self.current_stack + rel_stack_pos
         else:
-            self.declGlobal(var)
-    
-    def declGlobal(self, var):
-        if var in self.globals:
-            raise Exception("Global already declared")
+            if varname in self.globals:
+                raise Exception("Variable already bound")
 
-        self.globals[var] = self.current_stack
-        self.current_stack += 1
-    
-    def declLocal(self, var):
-        locals = self.locals[-1]
-
-        if var in locals:
-            raise Exception("Local already declared")
-        
-        locals[var] = self.current_stack
-        self.current_stack += 1
+            self.globals[varname] = self.current_stack + rel_stack_pos
 
     def get(self, var):
         for locals in reversed(self.locals):
@@ -296,6 +298,59 @@ class Compiler:
         cond += Beq("t0", "x0", 4 * len(block) + 4)
         
         return decl + cond + block
+    
+    def resolveFunctionDecl(self, fn):
+        self.beginScope()
+
+        for i, arg in enumerate(fn.args):
+            self.bindPosition(arg, -1 * (len(fn.args) - i))
+        
+        instr = self.pushReg("ra")
+        instr.commentFirst(f"# function {fn.name}")
+        instr.commentLast("# ra pushed to stack")
+
+        # adds return value to stack
+        instr += fn.block.resolve(self).commentFirst("# resolve function block")
+        instr.commentLast("# end function block")
+        instr += self.pushValue(10)
+        instr.commentLast("# fake return")
+        instr += self.pop("a0")
+        instr += self.pop("ra")
+        instr += Addi("sp", "sp", -4 * len(fn.args))
+        instr.commentLast("# restore stack")
+        instr += Jalr("x0", "ra", 0)
+        self.endScope()
+
+        self.functions[fn.name] = len(self.function_instr) * 4 + 4
+        self.function_instr += instr
+
+        return Instructions()
+    
+    def resolveFunctionCall(self, call):
+        instr = Instructions()
+        for arg in call.args:
+            instr += arg.resolve(self)
+        
+
+        instr += Jal("ra", self.functions[call.name])
+        instr.commentFirst(f"#CALL {call.name}")
+        instr += self.pushReg("a0")
+        instr.commentLast("#END call")
+        return instr
+
+
+        
+
+        
+
+
+# -pass args through stack, ra 
+# -bind stack positions to variables
+# -put ra on stack
+# execute stuff
+# put return in arg
+# pop args from stack, return to ra
+# add returned value to stack
 
 
 
