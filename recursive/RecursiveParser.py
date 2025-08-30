@@ -99,7 +99,7 @@ class If:
         self.else_expr = else_expr
     
     def resolve(self, interpret):
-        interpret.resolveIf(self)
+        return interpret.resolveIf(self)
 
     def __str__(self):
         if self.else_expr:

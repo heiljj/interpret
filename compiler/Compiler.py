@@ -219,6 +219,32 @@ class Compiler:
 
         self.endScope()
         return instr
+    
+    def resolveIf(self, if_):
+        cond = [Comment("#IF cond start")]
+        cond += if_.cond.resolve(self)
+
+        if_expr = [Comment("IF expr start")]
+        if_expr = if_.if_expr.resolve(self)
+
+        if if_.else_expr:
+            else_expr = [Comment("ELSE expr start")]
+            else_expr += if_.else_expr.resolve(self)
+            else_expr.append(Comment("ELSE expr end"))
+
+            if_expr.append(Beq("x0", "x0", 4 * len(else_expr) + 4))
+            if_expr.append(Comment("#IF expr end"))
+
+            cond += self.pop("t0")
+            cond.append(Beq("t0", "x0", 4 * len(if_expr) + 4))
+            cond.append(Comment("#IF cond end"))
+            return cond + if_expr + else_expr
+
+        else:
+            cond += self.pop("t0")
+            cond.append(Beq("t0", "x0", 4 * len(if_expr) + 4))
+            cond.append(Comment("#IF cond end"))
+            return cond + if_expr
 
 
 def comp(ast):

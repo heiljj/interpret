@@ -76,6 +76,13 @@ def test_expr13():
     buildtest("DEBUG (true or false) and true;", True)
     buildtest("DEBUG (false or false) and true;", False)
 
+def test_if1():
+    buildtest("if (1) {DEBUG 1;}", 1)
+    buildtest("if (0) {DEBUG 1;}", None)
+
+    buildtest("if (1) {DEBUG 1;} else {DEBUG 0;}", 1)
+    buildtest("if (0) {DEBUG 1;} else {DEBUG 0;}", 0)
+
 
 def test_expr_old5():
     buildtest("DEBUG 1 + 2;", 3)

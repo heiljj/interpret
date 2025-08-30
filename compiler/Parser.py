@@ -33,65 +33,6 @@ class Block:
         return f"{{{self.statements}}}"
 
 
-class Class:
-    def __init__(self, name, methods):
-        self.name = name
-        self.methods = methods
-    
-    def resolve(self, interpret):
-        return interpret.resolveClass(self)
-    
-    def __str__(self):
-        method_str = "".join(map(lambda x : str(x) + "\n", self.methods))
-        return f"class {self.name} {{{method_str}}}"
-
-class ObjectSetter:
-    def __init__(self, objectgetterroot, property, expr):
-        self.objectgetterroot = objectgetterroot
-        self.property = property
-        self.expr = expr
-    
-    def resolve(self, interpret):
-        interpret.resolveObjectSetter(self)
-
-class ObjectGetterRoot:
-    def __init__(self, identifier, call):
-        self.identifier = identifier
-        # update scope to that of identifier
-        # then resolve call
-        # pop scope
-        self.call = call
-    
-    def resolve(self, interpret):
-        return interpret.resolveObjectGetter(self)
-
-class ObjectCallMethod:
-    def __init__(self, method, args, next_call=None):
-        self.method = method
-        self.args = args
-        self.next_call = next_call
-    
-    def resolve(self, interpret):
-        return interpret.resolveObjectCallMethod(self)
-
-class ObjectGetProperty:
-    def __init__(self, property, next_call=None):
-        self.property = property
-        self.next_call = next_call
-    
-    def resolve(self, interpret):
-        return interpret.resolveObjectGetProperty(self)
-
-
-class ObjectMethodCall:
-    def __init__(self, identifier, properties, args):
-        self.identifier = identifier
-        self.properties = properties
-        self.args = args
-    
-    def resolve(self, interpret):
-        return interpret.resolve(self)
-
 class If:
     def __init__(self, cond, if_expr, else_expr):
         self.cond = cond
@@ -99,7 +40,7 @@ class If:
         self.else_expr = else_expr
     
     def resolve(self, interpret):
-        interpret.resolveIf(self)
+        return interpret.resolveIf(self)
 
     def __str__(self):
         if self.else_expr:
@@ -295,42 +236,39 @@ class Parser:
 
         self.parsers = [
             self.parseStatements,                               #0
-            self.parseClass,                                    #1
-            self.parseFunctionDefinition,                       #2
-            self.parseWhile,                                    #3
-            self.parseFor,                                      #4
-            self.parseIf,                                       #5
-            self.parseBlock,                                    #6
-            self.parseVarDecl,                                  #7
-            self.parseClassSet,                                 #8
-            self.parseVarSet,                                   #9
-            self.parseReturn,                                   #10
-            self.parseContinue,                                 #11
-            self.parseBreak,                                    #12
-            self.parseExprStatement,                            #13
-            self.parseDebug,                                    #14
-            self.defineBinaryOpFunction(TokenType.OR),          #15
-            self.defineBinaryOpFunction(TokenType.AND),         #16
-            self.defineBinaryOpFunction(TokenType.COMP_EQ),     #17
-            self.defineBinaryOpFunction(TokenType.COMP_NEQ),    #18
-            self.defineBinaryOpFunction(TokenType.COMP_GT),     #19
-            self.defineBinaryOpFunction(TokenType.COMP_LT),     #20
-            self.defineBinaryOpFunction(TokenType.COMP_GT_EQ),  #21
-            self.defineBinaryOpFunction(TokenType.COMP_LT_EQ),  #22
-            self.defineBinaryOpFunction(TokenType.OP_PLUS),     #23
-            self.defineBinaryOpFunction(TokenType.OP_MINUS),    #24
-            self.defineBinaryOpFunction(TokenType.OP_MUL),      #25
-            self.defineBinaryOpFunction(TokenType.OP_DIV),      #26
-            self.parseObjectMethodCall,                         #27
-            self.parseFunctionCall,                             #28
-            self.parseParns,                                    #29
-            self.parseValue                                     #30
+            self.parseFunctionDefinition,                       #1
+            self.parseWhile,                                    #2
+            self.parseFor,                                      #3
+            self.parseIf,                                       #4
+            self.parseBlock,                                    #5
+            self.parseVarDecl,                                  #6
+            self.parseVarSet,                                   #7
+            self.parseReturn,                                   #8
+            self.parseContinue,                                 #9
+            self.parseBreak,                                    #10
+            self.parseExprStatement,                            #11
+            self.parseDebug,                                    #12
+            self.defineBinaryOpFunction(TokenType.OR),          #13
+            self.defineBinaryOpFunction(TokenType.AND),         #14
+            self.defineBinaryOpFunction(TokenType.COMP_EQ),     #15
+            self.defineBinaryOpFunction(TokenType.COMP_NEQ),    #16
+            self.defineBinaryOpFunction(TokenType.COMP_GT),     #17
+            self.defineBinaryOpFunction(TokenType.COMP_LT),     #18
+            self.defineBinaryOpFunction(TokenType.COMP_GT_EQ),  #19
+            self.defineBinaryOpFunction(TokenType.COMP_LT_EQ),  #20
+            self.defineBinaryOpFunction(TokenType.OP_PLUS),     #21
+            self.defineBinaryOpFunction(TokenType.OP_MINUS),    #22
+            self.defineBinaryOpFunction(TokenType.OP_MUL),      #23
+            self.defineBinaryOpFunction(TokenType.OP_DIV),      #24
+            self.parseFunctionCall,                             #25
+            self.parseParns,                                    #26
+            self.parseValue                                     #27
         ]
 
-        self.expression_prec = 15
-        self.block_prec = 6
-        self.function_prec = 2
-        self.var_decl_prec = 7
+        self.expression_prec = 13
+        self.block_prec = 5
+        self.function_prec = 1
+        self.var_decl_prec = 6
 
         self.ast = self.parsePrec(0)
     
@@ -422,80 +360,35 @@ class Parser:
         
         return self.parsePrec(prec + 1)
     
-    def parseClassSet(self, prec):
-        index = self.index
-
-        if not (class_name := self.tryMatch(TokenType.IDENTIFIER)):
-            return self.parsePrec(prec + 1)
-        
-        if not self.tryMatch(TokenType.DOT):
-            self.index = index
-            return self.parsePrec(prec + 1)
-        
-        calls = []
-
-        while (identifier := self.tryMatch(TokenType.IDENTIFIER)):
-            if not self.tryMatch(TokenType.PAR_LEFT):
-                calls.append(ObjectGetProperty(identifier.value))
-            else:
-                args = []
-                while self.peek().kind != TokenType.PAR_RIGHT:
-                    args.append(self.parsePrec(self.expression_prec))
-
-                    if not self.tryMatch(TokenType.COMMA):
-                        break
-                
-                self.match(TokenType.PAR_RIGHT)
-                calls.append(ObjectCallMethod(identifier.value, args))
-            
-            if not self.tryMatch(TokenType.DOT):
-                break
-        
-        if not self.tryMatch(TokenType.DECL_EQ):
-            self.index = index
-            return self.parsePrec(prec + 1)
-        
-        for i in range(0, len(calls)-2):
-            calls[i].next_call = calls[i+1]
-        
-        objgr = None
-
-        if len(calls) == 1:
-            objgr = ObjectGetterRoot(class_name.value, None)
-        else:
-            objgr = ObjectGetterRoot(class_name.value, calls[0])
-
-        expr = self.parsePrec(self.expression_prec)
-        self.match(TokenType.SEMI)
-
-        return ObjectSetter(objgr, calls[-1].property, expr)
     
     def parseVarDecl(self, prec):
-        if self.tryMatch(TokenType.DECL):
-            identifier = self.match(TokenType.IDENTIFIER)
+        if not self.tryMatch(TokenType.DECL):
+            return self.parsePrec(prec + 1)
 
-            if self.tryMatch(TokenType.DECL_EQ):
-                right = self.parsePrec(self.expression_prec)
-                self.match(TokenType.SEMI)
-                return VariableDeclAndSet(identifier.value, right)
+        identifier = self.match(TokenType.IDENTIFIER)
 
+        if not self.tryMatch(TokenType.DECL_EQ):
             self.match(TokenType.SEMI)
             return VariableDecl(identifier.value)
 
-        return self.parsePrec(prec + 1)
+        right = self.parsePrec(self.expression_prec)
+        self.match(TokenType.SEMI)
+        return VariableDeclAndSet(identifier.value, right)
+
+
 
     def parseVarSet(self, prec):
-        if (token := self.tryMatch(TokenType.IDENTIFIER)):
+        if not (token := self.tryMatch(TokenType.IDENTIFIER)):
+            return self.parsePrec(prec + 1)
 
-            if not self.tryMatch(TokenType.DECL_EQ):
-                self.previous()
-                return self.parsePrec(prec + 1)
-            
-            expr = self.parsePrec(self.expression_prec)
-            self.match(TokenType.SEMI)
-            return VariableSet(token.value, expr)
+        if not self.tryMatch(TokenType.DECL_EQ):
+            self.previous()
+            return self.parsePrec(prec + 1)
         
-        return self.parsePrec(prec + 1)
+        expr = self.parsePrec(self.expression_prec)
+        self.match(TokenType.SEMI)
+        return VariableSet(token.value, expr)
+        
 
     def parseBlock(self, prec):
         if not self.tryMatch(TokenType.BRAC_LEFT):
@@ -629,56 +522,6 @@ class Parser:
 
         return Continue()
 
-    def parseClass(self, prec):
-        if not self.tryMatch(TokenType.CLASS):
-            return self.parsePrec(prec + 1)
-        
-        name = self.match(TokenType.IDENTIFIER).value
-
-        self.match(TokenType.BRAC_LEFT)
-        methods = []
-
-
-        while self.peek().kind == TokenType.FUNC:
-            methods.append(self.parsePrec(self.function_prec))
-        
-        self.match(TokenType.BRAC_RIGHT)
-        return Class(name, methods)
-
-    def parseObjectMethodCall(self, prec):
-        index = self.index
-
-        if not (class_name := self.tryMatch(TokenType.IDENTIFIER)):
-            return self.parsePrec(prec + 1)
-        
-        if not self.tryMatch(TokenType.DOT):
-            self.index = index
-            return self.parsePrec(prec + 1)
-        
-        calls = []
-
-        while (identifier := self.tryMatch(TokenType.IDENTIFIER)):
-            if not self.tryMatch(TokenType.PAR_LEFT):
-                calls.append(ObjectGetProperty(identifier.value))
-            else:
-                args = []
-                while self.peek().kind != TokenType.PAR_RIGHT:
-                    args.append(self.parsePrec(self.expression_prec))
-
-                    if not self.tryMatch(TokenType.COMMA):
-                        break
-                
-                self.match(TokenType.PAR_RIGHT)
-                calls.append(ObjectCallMethod(identifier.value, args))
-            
-            if not self.tryMatch(TokenType.DOT):
-                break
-        
-
-        for i in range(0, len(calls)-1):
-            calls[i].next_call = calls[i+1]
-        
-        return ObjectGetterRoot(class_name.value, calls[0])
 
 def parse(tokens: list[Token]):
     parser = Parser(tokens)

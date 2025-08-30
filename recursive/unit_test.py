@@ -1,5 +1,5 @@
 from Tokenizer import tokenize
-from Parser import parse
+from RecursiveParser import parse
 from Interpreter import Interpreter
 
 def test_expr1():
