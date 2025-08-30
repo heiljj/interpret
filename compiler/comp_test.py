@@ -78,10 +78,16 @@ def test_expr13():
 
 def test_if1():
     buildtest("if (1) {DEBUG 1;}", 1)
-    buildtest("if (0) {DEBUG 1;}", None)
+    buildtest("if (0) {ERR;}", None)
 
-    buildtest("if (1) {DEBUG 1;} else {DEBUG 0;}", 1)
-    buildtest("if (0) {DEBUG 1;} else {DEBUG 0;}", 0)
+    buildtest("if (1) {DEBUG 1;} else {ERR;}", 1)
+    buildtest("if (0) {ERR;} else {DEBUG 0;}", 0)
+
+    buildtest("if (1 == 1) {DEBUG 1;}", 1)
+    buildtest("if (0 == 1) {ERR;}", None)
+
+    buildtest("var a = 1; if (1) {a = 2;} else {ERR;} DEBUG a;", 2)
+
 
 
 def test_expr_old5():

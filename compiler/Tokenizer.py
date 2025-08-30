@@ -47,6 +47,7 @@ class TokenType(Enum):
 
     CLASS = 35
     DOT = 36
+    ERR = 37
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
@@ -80,6 +81,7 @@ token_map = {
     "and" : TokenType.AND,
 
     "DEBUG" : TokenType.DEBUG,
+    "ERR" : TokenType.ERR,
     "," : TokenType.COMMA,
     "return" : TokenType.RETURN,
 

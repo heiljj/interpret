@@ -171,6 +171,10 @@ class Debug(Instruction):
     def __init__(self):
         super().__init__()
 
+class RaiseError(Instruction):
+    def __init__(self):
+        super().__init__()
+
     
 
 

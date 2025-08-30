@@ -154,7 +154,7 @@ class Emu:
     def resolveSw(self, sw):
         addr = int(self.getReg(sw.r1) + sw.imm)
 
-        if addr % 4 != 0:
+        if addr % 4 != 0 or addr < 0:
             raise Exception("Bad address")
         
         index = addr // 4
@@ -167,5 +167,8 @@ class Emu:
     def resolveJal(self, jal):
         self.setReg(jal.rd, self.getReg("PC") + 4)
         self.setReg("PC", jal.imm + 4)
+    
+    def resolveRaiseError(self, err):
+        raise Exception("RaiseError instruction")
 
     

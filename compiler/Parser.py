@@ -1,5 +1,12 @@
 from Tokenizer import Token, TokenType, reverse_token_map
 
+class Err:
+    def __init__(self):
+        pass
+
+    def resolve(self, interpret):
+        return interpret.resolveErr(self)
+
 class Debug:
     def __init__(self, expr):
         self.expr = expr
@@ -326,6 +333,8 @@ class Parser:
                 return VariableGet(token.value)
             case TokenType.BOOL:
                 return Value(TokenType.BOOL, token.value)
+            case TokenType.ERR:
+                return Err()
             case _:
                 # self.previous()
                 # return self.parsePrec(self.expression_prec)
