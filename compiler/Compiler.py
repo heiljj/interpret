@@ -280,6 +280,7 @@ class Compiler:
         self.beginScope()
         decl = for_.decl.resolve(self)
         decl.commentFirst("#FOR")
+        decl.commentLast("#for decl end")
 
         cond = for_.cond.resolve(self)
         cond.commentFirst("#COND start")
@@ -288,7 +289,8 @@ class Compiler:
 
         block = for_.block.resolve(self)
         block += for_.assign.resolve(self)
-        block += Beq("x0", "x0", -4 * len(cond))
+        block += Beq("x0", "x0", -4 * len(cond) - 4 * len(block))
+        block.commentFirst("body start")
 
         cond += Beq("t0", "x0", 4 * len(block) + 4)
         

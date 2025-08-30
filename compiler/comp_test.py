@@ -98,7 +98,10 @@ def test_while1():
     buildtest("var a = 10; while (a != 0) {a = a - 1;} DEBUG a;", 0)
 
 def test_for1():
-    buildtest("for(var j = 0; j = j + 1; j != 0) {ERR;}", None)
+    buildtest("for(var j = 0; j != 0; j = j + 1) {ERR;}", None)
+    buildtest("for (var i = 0; i < 1; i = i + 1) {}", None)
+    buildtest("var i = 0; for (var j = 0; j <= 10; j = j + 1) {i = j;} DEBUG i;", 10)
+
 
 
 def test_expr_old5():
