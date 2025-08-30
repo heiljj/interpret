@@ -63,7 +63,7 @@ class Emu:
             self.next()
 
             i += 1
-            if i > 1000:
+            if i > 10000:
                 raise Exception("Loop")
     
     def resolveComment(self, instr):

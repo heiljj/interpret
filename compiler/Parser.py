@@ -248,34 +248,35 @@ class Parser:
             self.parseFor,                                      #3
             self.parseIf,                                       #4
             self.parseBlock,                                    #5
-            self.parseVarDecl,                                  #6
-            self.parseVarSet,                                   #7
-            self.parseReturn,                                   #8
-            self.parseContinue,                                 #9
-            self.parseBreak,                                    #10
-            self.parseExprStatement,                            #11
-            self.parseDebug,                                    #12
-            self.defineBinaryOpFunction(TokenType.OR),          #13
-            self.defineBinaryOpFunction(TokenType.AND),         #14
-            self.defineBinaryOpFunction(TokenType.COMP_EQ),     #15
-            self.defineBinaryOpFunction(TokenType.COMP_NEQ),    #16
-            self.defineBinaryOpFunction(TokenType.COMP_GT),     #17
-            self.defineBinaryOpFunction(TokenType.COMP_LT),     #18
-            self.defineBinaryOpFunction(TokenType.COMP_GT_EQ),  #19
-            self.defineBinaryOpFunction(TokenType.COMP_LT_EQ),  #20
-            self.defineBinaryOpFunction(TokenType.OP_PLUS),     #21
-            self.defineBinaryOpFunction(TokenType.OP_MINUS),    #22
-            self.defineBinaryOpFunction(TokenType.OP_MUL),      #23
-            self.defineBinaryOpFunction(TokenType.OP_DIV),      #24
-            self.parseFunctionCall,                             #25
-            self.parseParns,                                    #26
-            self.parseValue                                     #27
+            self.parseStatement,                                #6
+            self.parseVarDecl,                                  #7
+            self.parseVarSet,                                   #8
+            self.parseReturn,                                   #9
+            self.parseContinue,                                 #10
+            self.parseBreak,                                    #11
+            self.parseExprStatement,                            #12
+            self.parseDebug,                                    #13
+            self.defineBinaryOpFunction(TokenType.OR),          #14
+            self.defineBinaryOpFunction(TokenType.AND),         #15
+            self.defineBinaryOpFunction(TokenType.COMP_EQ),     #16
+            self.defineBinaryOpFunction(TokenType.COMP_NEQ),    #17
+            self.defineBinaryOpFunction(TokenType.COMP_GT),     #18
+            self.defineBinaryOpFunction(TokenType.COMP_LT),     #19
+            self.defineBinaryOpFunction(TokenType.COMP_GT_EQ),  #20
+            self.defineBinaryOpFunction(TokenType.COMP_LT_EQ),  #21
+            self.defineBinaryOpFunction(TokenType.OP_PLUS),     #22
+            self.defineBinaryOpFunction(TokenType.OP_MINUS),    #23
+            self.defineBinaryOpFunction(TokenType.OP_MUL),      #24
+            self.defineBinaryOpFunction(TokenType.OP_DIV),      #25
+            self.parseFunctionCall,                             #26
+            self.parseParns,                                    #27
+            self.parseValue                                     #28
         ]
 
-        self.expression_prec = 13
+        self.expression_prec = 14
         self.block_prec = 5
         self.function_prec = 1
-        self.var_decl_prec = 6
+        self.var_decl_prec = 7
 
         self.ast = self.parsePrec(0)
     
@@ -318,8 +319,12 @@ class Parser:
     
     def parseExprStatement(self, prec):
         value = ExprStatement(self.parsePrec(prec + 1))
-        self.match(TokenType.SEMI)
         return value
+    
+    def parseStatement(self, prec):
+        v = self.parsePrec(prec + 1)
+        self.match(TokenType.SEMI)
+        return v
     
     def parseValue(self, prec):
         token = self.next()
@@ -381,7 +386,6 @@ class Parser:
             return VariableDecl(identifier.value)
 
         right = self.parsePrec(self.expression_prec)
-        self.match(TokenType.SEMI)
         return VariableDeclAndSet(identifier.value, right)
 
 
@@ -395,7 +399,6 @@ class Parser:
             return self.parsePrec(prec + 1)
         
         expr = self.parsePrec(self.expression_prec)
-        self.match(TokenType.SEMI)
         return VariableSet(token.value, expr)
         
 
@@ -404,7 +407,7 @@ class Parser:
             return self.parsePrec(prec + 1)
         
         if self.tryMatch(TokenType.BRAC_RIGHT):
-            return Block(Value(TokenType.NUM, 0))
+            return Block([])
         
         middle = self.parsePrec(0)
         self.match(TokenType.BRAC_RIGHT)
@@ -497,6 +500,7 @@ class Parser:
         self.match(TokenType.PAR_LEFT)
 
         decl = self.parsePrec(self.var_decl_prec)
+        self.match(TokenType.SEMI)
         cond = self.parsePrec(self.expression_prec)
         self.match(TokenType.SEMI)
         incr = self.parsePrec(self.var_decl_prec)
