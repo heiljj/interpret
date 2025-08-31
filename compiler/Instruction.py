@@ -41,6 +41,9 @@ class Instructions:
     def __getitem__(self, idx):
         return self.instr[idx]
     
+    def __setitem__(self, idx, value):
+        self.instr[idx] = value
+    
     def __iter__(self):
         return iter(self.instr)
     
@@ -104,7 +107,7 @@ class IType(Instruction):
         self.rd = rd
         self.r1 = r1
 
-        if type(imm) != Binary:
+        if type(imm) == float or type(imm) == int:
             imm = Binary(imm)
             
         self.imm = imm
@@ -139,7 +142,7 @@ class BType(Instruction):
         self.r1 = r1
         self.r2 = r2
         
-        if type(imm) != Binary:
+        if type(imm) == float or type(imm) == int:
             imm = Binary(imm)
 
         self.imm = imm
@@ -174,7 +177,7 @@ class JType(Instruction):
         super().__init__()
         self.rd = rd
 
-        if type(imm) != Binary:
+        if type(imm) == float or type(imm) == int:
             imm = Binary(imm)
 
         self.imm = imm
@@ -187,6 +190,9 @@ class Jal(JType):
     def __init__(self, rd, imm):
         super().__init__(rd, imm)
 
+class FutureBeq(Beq):
+    def __init__(self, r1, r2):
+        super().__init__(r1, r2, None)
 
 class SType(Instruction):
     def __init__(self, r1, r2, imm):
@@ -214,3 +220,5 @@ class Debug(Instruction):
 class RaiseError(Instruction):
     def __init__(self):
         super().__init__()
+
+

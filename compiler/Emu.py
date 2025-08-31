@@ -123,8 +123,9 @@ class Emu:
         self.setReg(lw.rd, self.mem[index])
     
     def resolveJalr(self, jalr):
-        self.setReg("PC", self.getReg(jalr.r1) + jalr.imm)
+        retvalue = self.getReg(jalr.r1)
         self.setReg("ra", self.getReg("PC") + 4)
+        self.setReg("PC", retvalue + jalr.imm - 4)
     
     def resolveSlti(self, slti):
         r1_value = self.getReg(slti.r1)
@@ -170,7 +171,7 @@ class Emu:
     
     def resolveJal(self, jal):
         self.setReg(jal.rd, self.getReg("PC") + 4)
-        self.setReg("PC", jal.imm - 4)
+        self.setReg("PC", self.getReg("PC") + jal.imm - 4)
     
     def resolveRaiseError(self, err):
         raise Exception("RaiseError instruction")

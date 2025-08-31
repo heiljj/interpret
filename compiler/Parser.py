@@ -460,7 +460,6 @@ class Parser:
             return self.parsePrec(prec + 1)
         
         expr = self.parsePrec(self.expression_prec)
-        self.match(TokenType.SEMI)
 
         return Return(expr)
     

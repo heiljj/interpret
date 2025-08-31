@@ -310,12 +310,13 @@ class Compiler:
         instr.commentLast("# ra pushed to stack")
 
         # adds return value to stack
+        self.function_stack = self.current_stack
         instr += fn.block.resolve(self).commentFirst("# resolve function block")
+
+        self.linkFutureJals(instr, 4 * len(instr))
+
         instr.commentLast("# end function block")
-        instr += self.pushValue(10)
-        instr.commentLast("# fake return")
-        instr += self.pop("a0")
-        instr += self.pop("ra")
+        instr += self.pop("ra").commentFirst("# start of function exit prec")
         instr += Addi("sp", "sp", -4 * len(fn.args))
         instr.commentLast("# restore stack")
         instr += Jalr("x0", "ra", 0)
@@ -332,11 +333,29 @@ class Compiler:
             instr += arg.resolve(self)
         
 
-        instr += Jal("ra", self.functions[call.name])
+        instr += Jalr("ra", "x0", self.functions[call.name])
         instr.commentFirst(f"#CALL {call.name}")
         instr += self.pushReg("a0")
         instr.commentLast("#END call")
         return instr
+    
+    def resolveReturn(self, ret):
+        instr = ret.expr.resolve(self)
+        instr += self.pop("a0")
+        instr += Addi("sp", "sp", 4 * self.current_stack - 4 * self.function_stack)
+        instr += FutureBeq("x0", "x0")
+        instr.commentFirst("# return start")
+        instr.commentLast("# return jump")
+        return instr
+    
+    def linkFutureJals(self, instructions, addr_rel_start):
+        for i, instr in enumerate(instructions):
+            if type(instr) == FutureBeq:
+                instructions[i] = Beq("x0", "x0", addr_rel_start - i * 4)
+                instructions[i].comment = instr.comment
+
+
+
 
 
         
