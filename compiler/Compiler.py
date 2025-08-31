@@ -342,7 +342,7 @@ class Compiler:
     def resolveReturn(self, ret):
         instr = ret.expr.resolve(self)
         instr += self.pop("a0")
-        instr += Addi("sp", "sp", 4 * self.current_stack - 4 * self.function_stack)
+        instr += Addi("sp", "sp", 4 * self.function_stack - 4 * self.current_stack)
         instr += FutureBeq("x0", "x0")
         instr.commentFirst("# return start")
         instr.commentLast("# return jump")
