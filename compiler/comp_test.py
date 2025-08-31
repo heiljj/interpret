@@ -102,6 +102,68 @@ def test_for1():
     buildtest("for (var i = 0; i < 1; i = i + 1) {}", None)
     buildtest("var i = 0; for (var j = 0; j <= 10; j = j + 1) {i = j;} DEBUG i;", 10)
 
+def test_fn1():
+    buildtest("fun f() {DEBUG 1;} f();", 1)
+    buildtest("fun f() {DEBUG 1;}", None)
+    buildtest("fun f() {return 1;} DEBUG f();", 1)
+    buildtest("fun f() {return 1;} f(); f(); f(); DEBUG f();", 1)
+    buildtest("fun add(a, b) {return a + b;} DEBUG add(1, 5);", 6)
+    buildtest("fun add(a, b) {return a + b;} DEBUG add(add(1, 2), add(3, 4));", 10)
+    buildtest("fun add(a, b) {return a + b;} DEBUG add(add(add(add(1, 0), 2), 3), 4);", 10)
+
+def test_fn2():
+    buildtest("fun f() {var a = 1; return 2;} DEBUG f();", 2)
+    buildtest("fun f() {return 1; DEBUG 10;} f();", None)
+    buildtest("""
+        fun f() {
+            var a = 6;
+            if (true) {
+                return a;
+            } else {
+                ERR;
+            }
+        }
+        DEBUG f();
+    """, 6)
+    buildtest("""
+        fun f() {
+            var a = 6;
+            if (false) {
+                ERR;
+            } else {
+                return a;
+            }
+        }
+        DEBUG f();
+    """, 6)
+
+def test_fn3():
+    buildtest("""
+        fun f(x) {
+            if (x == 0) {
+                return 0;
+            } else {
+                return x + f(x-1);
+            }
+        }
+        DEBUG f(4);
+    """, 10)
+
+def test_fn4():
+    def fib(i):
+        return 1 if i == 0 or i == 1 else fib(i-1) + fib(i-2)
+
+    for i in range(10):
+        buildtest("fun fib(i) {             \
+            if (i == 0 or i == 1) {         \
+                return 1;                   \
+            } else {                        \
+                return fib(i-1) + fib(i-2); \
+            }} DEBUG fib(" + str(i) + ");   \
+        ", fib(i))
+
+
+
 
 
 def test_expr_old5():

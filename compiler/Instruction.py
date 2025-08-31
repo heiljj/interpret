@@ -193,6 +193,9 @@ class Jal(JType):
 class FutureBeq(Beq):
     def __init__(self, r1, r2):
         super().__init__(r1, r2, None)
+    
+    def __str__(self):
+        return self.padComment("FUTURE BEQ")
 
 class SType(Instruction):
     def __init__(self, r1, r2, imm):

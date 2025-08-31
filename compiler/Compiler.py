@@ -300,6 +300,8 @@ class Compiler:
         return decl + cond + block
     
     def resolveFunctionDecl(self, fn):
+        self.functions[fn.name] = len(self.function_instr) * 4 + 4
+
         self.beginScope()
 
         for i, arg in enumerate(fn.args):
@@ -322,7 +324,6 @@ class Compiler:
         instr += Jalr("x0", "ra", 0)
         self.endScope()
 
-        self.functions[fn.name] = len(self.function_instr) * 4 + 4
         self.function_instr += instr
 
         return Instructions()
@@ -334,6 +335,7 @@ class Compiler:
         
 
         instr += Jalr("ra", "x0", self.functions[call.name])
+        self.current_stack -= len(call.args)
         instr.commentFirst(f"#CALL {call.name}")
         instr += self.pushReg("a0")
         instr.commentLast("#END call")
