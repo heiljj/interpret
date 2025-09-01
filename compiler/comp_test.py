@@ -162,6 +162,18 @@ def test_fn4():
             }} DEBUG fib(" + str(i) + ");   \
         ", fib(i))
 
+def test_fn5():
+    buildtest("""
+        fun add(a, b) {
+            return a + b;
+        }
+
+        fun mul(a, b) {
+            return a * b;
+        }
+        DEBUG mul(add(1, 2), add(5, 5));
+    """, 30)
+
 
 
 
