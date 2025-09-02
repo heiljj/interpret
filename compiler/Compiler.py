@@ -1,6 +1,6 @@
 from Tokenizer import TokenType
 from Instruction import *
-from Parser import INT
+from Parser import INT, CHAR
 
 class Compiler:
     def __init__(self, ast):
@@ -95,6 +95,9 @@ class Compiler:
     def resolveValue(self, value):
         if value.type == INT:
             return self.pushValue(Binary(value.value))
+        
+        if value.type == CHAR:
+            return self.pushValue(ord(value.value))
 
         raise NotImplementedError
     

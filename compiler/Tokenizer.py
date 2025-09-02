@@ -231,6 +231,9 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.BOOL, False))
                     continue
 
+                if chars == "":
+                    continue
+
                 self.tokens.append(Token(TokenType.IDENTIFIER, chars))
 
 def tokenize(text: str) -> list[Token]:

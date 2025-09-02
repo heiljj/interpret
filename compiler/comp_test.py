@@ -1,6 +1,6 @@
 from Tokenizer import tokenize
 from Parser import parse
-from Typechecker import typecheck
+from Typechecker import typecheck, TypeError
 from Compiler import comp
 from Emu import Emu
 
@@ -175,8 +175,11 @@ def test_fn5():
         DEBUG mul(add(1, 2), add(5, 5));
     """, 30)
 
-
-
+def test_typecheck1():
+    buildtest_expect('DEBUG 1 + "1";', TypeError)
+    buildtest_expect('char f() {return 1;}', TypeError)
+    buildtest_expect('int f(char a) {return 1;} f(1);', TypeError)
+    buildtest_expect('char f() {if (1) {return "a";} else {return 1;}}', TypeError)
 
 
 def test_expr_old5():
@@ -225,3 +228,13 @@ def buildtest(code , value):
         value = int(value)
 
     assert value == emu.debug_info
+
+def buildtest_expect(code, er):
+    try:
+        buildtest(code, None)
+    except er as e:
+        return
+    except AssertionError:
+        raise Exception()
+    else:
+        raise Exception()

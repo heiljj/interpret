@@ -2,6 +2,10 @@ from Tokenizer import TokenType
 from Parser import Type, INT
 from Instruction import *
 
+class TypeError(Exception):
+    def __init__(self, *args):
+        super().__init__(*args)
+
 class Typechecker:
     def __init__(self, ast):
         self.globals = {}
@@ -87,7 +91,7 @@ class Typechecker:
         right = op.right.resolve(self)
 
         if left != right:
-            raise Exception(f"Typecheck error: {left} != {right} on {op}")
+            raise TypeError(f"{left} != {right} on {op}")
         
         op.type = left
         return left
@@ -97,7 +101,7 @@ class Typechecker:
         t = vardeclandset.expr.resolve(self)
 
         if t != vardeclandset.type:
-            raise Exception(f"Typecheck error: {t} != {vardeclandset.type} on {vardeclandset}")
+            raise TypeError(f"{t} != {vardeclandset.type} on {vardeclandset}")
         
         self.decl(vardeclandset.name)
         self.set(vardeclandset.name, vardeclandset.type)
@@ -111,7 +115,7 @@ class Typechecker:
         actual = varset.expr.resolve(self)
 
         if expected_type != actual:
-            raise Exception(f"Typecheck error: variable {varset.name} of type {varset.type} assigned {varset.expr}")
+            raise TypeError(f"variable {varset.name} of type {varset.type} assigned {varset.expr}")
     
     def resolveVariableGet(self, varget):
         return self.get(varget.name)
@@ -132,7 +136,7 @@ class Typechecker:
         cond = if_.cond.resolve(self)
 
         if cond != INT:
-            raise Exception(f"Typecheck error: if cond was type {cond}")
+            raise TypeError(f"if cond was type {cond}")
         
         if_.if_expr.resolve(self)
 
@@ -182,19 +186,19 @@ class Typechecker:
         decl = self.get(call.name)
 
         if len(decl.args) != len(call.args):
-            raise Exception(f"Typecheck error: Wrong number of args : {call}")
+            raise TypeError(f"Wrong number of args : {call}")
         
         for i in range(len(decl.args)):
             t = call.args[i].resolve(self)
             if t != decl.argtypes[i]:
-                raise Exception(f"Typecheck error: arg of wrong type, call: {call} arg: {call.args[i]}")
+                raise TypeError(f"arg of wrong type, call: {call} arg: {call.args[i]}")
         
         return decl.type
     
     def resolveReturn(self, ret):
         t = ret.expr.resolve(self)
         if t != self.getExpectedReturnType():
-            raise Exception("Typecheck error: wrong return type")
+            raise TypeError("wrong return type")
 
         
 def typecheck(ast):

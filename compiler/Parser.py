@@ -14,6 +14,7 @@ class Type:
         return str(self.name)
 
 INT = Type("int")
+CHAR = Type("char")
 
 class Err:
     def __init__(self):
@@ -261,7 +262,8 @@ class Parser:
         self.end = len(self.tokens)
 
         self.registered_types = {
-            "int" : INT
+            "int" : INT,
+            "char" : CHAR
         }
 
         self.parsers = [
@@ -359,7 +361,9 @@ class Parser:
             case TokenType.NUM:
                 return Value(INT, token.value)
             case TokenType.STR:
-                return Value(TokenType.STR, token.value)
+                if len(token.value) != 1:
+                    raise NotImplementedError("string")
+                return Value(CHAR, token.value)
             case TokenType.IDENTIFIER:
                 return VariableGet(token.value)
             case TokenType.BOOL:
