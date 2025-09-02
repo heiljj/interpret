@@ -324,6 +324,14 @@ class Compiler:
         instr += self.pop("ra").commentFirst("# start of function exit prec")
         instr += Addi("sp", "sp", -4 * len(fn.args))
         instr.commentLast("# restore stack")
+
+        # copy old stack
+        b = fn.type.getBytes()
+
+        for i in range(b):
+            instr += Lw("t0", "a0", -4 * b + i * 4)
+            instr += self.pushReg("t0")
+
         instr += Jalr("x0", "ra", 0)
         self.endScope()
 
@@ -337,15 +345,15 @@ class Compiler:
             instr += arg.resolve(self)
 
         instr += Jalr("ra", "x0", self.functions[call.name])
+        self.current_stack += 1
         self.current_stack -= len(call.args)
         instr.commentFirst(f"#CALL {call.name}")
-        instr += self.pushReg("a0")
         instr.commentLast("#END call")
         return instr
     
     def resolveReturn(self, ret):
         instr = ret.expr.resolve(self)
-        instr += self.pop("a0")
+        instr += Addi("a0", "sp", 0)
         instr += Addi("sp", "sp", 4 * self.function_stack - 4 * self.current_stack)
         instr += FutureBeq("x0", "x0")
         instr.commentFirst("# return start")
