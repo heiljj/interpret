@@ -1,5 +1,6 @@
 from Tokenizer import TokenType
 from Instruction import *
+from Parser import INT
 
 class Compiler:
     def __init__(self, ast):
@@ -92,11 +93,8 @@ class Compiler:
         )
     
     def resolveValue(self, value):
-        if value.type == TokenType.NUM:
+        if value.type == INT:
             return self.pushValue(Binary(value.value))
-        
-        if value.type == TokenType.BOOL:
-            return self.pushValue(Binary(int(value.value)))
 
         raise NotImplementedError
     
@@ -315,7 +313,9 @@ class Compiler:
         self.function_stack = self.current_stack
         instr += fn.block.resolve(self).commentFirst("# resolve function block")
 
-        self.linkFutureJals(instr, 4 * len(instr))
+        self.linkFutureBeq(instr, 4 * len(instr))
+
+        # TODO copy return value to the bottom of the stack instead of using a0
 
         instr.commentLast("# end function block")
         instr += self.pop("ra").commentFirst("# start of function exit prec")
@@ -332,7 +332,6 @@ class Compiler:
         instr = Instructions()
         for arg in call.args:
             instr += arg.resolve(self)
-        
 
         instr += Jalr("ra", "x0", self.functions[call.name])
         self.current_stack -= len(call.args)
@@ -350,7 +349,7 @@ class Compiler:
         instr.commentLast("# return jump")
         return instr
     
-    def linkFutureJals(self, instructions, addr_rel_start):
+    def linkFutureBeq(self, instructions, addr_rel_start):
         for i, instr in enumerate(instructions):
             if type(instr) == FutureBeq:
                 instructions[i] = Beq("x0", "x0", addr_rel_start - i * 4)

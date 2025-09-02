@@ -1,5 +1,6 @@
 from Tokenizer import tokenize
 from Parser import parse
+from Typechecker import typecheck
 from Compiler import comp
 from Emu import Emu
 
@@ -87,36 +88,36 @@ def test_if1():
     buildtest("if (0 == 1) {ERR;}", None)
 
 def test_if2():
-    buildtest("var a = 1; if (1) {a = 2;} else {ERR;} DEBUG a;", 2)
-    buildtest("var a = 1; if (0) {ERR;} else {a = 3;} DEBUG a;", 3)
-    buildtest("var a = 1; if (1) {var a = 2;} DEBUG a;", 1)
+    buildtest("int a = 1; if (1) {a = 2;} else {ERR;} DEBUG a;", 2)
+    buildtest("int a = 1; if (0) {ERR;} else {a = 3;} DEBUG a;", 3)
+    buildtest("int a = 1; if (1) {int a = 2;} DEBUG a;", 1)
 
 def test_while1():
-    buildtest("var a = 0; while (0) {ERR;} a = 1; DEBUG a;", 1)
-    buildtest("var a = 0; while (0) {a = a + 1;} DEBUG a;", 0)
-    buildtest("var a = 0; while (a < 10) {a = a + 1;} DEBUG a;", 10)
-    buildtest("var a = 10; while (a != 0) {a = a - 1;} DEBUG a;", 0)
+    buildtest("int a = 0; while (0) {ERR;} a = 1; DEBUG a;", 1)
+    buildtest("int a = 0; while (0) {a = a + 1;} DEBUG a;", 0)
+    buildtest("int a = 0; while (a < 10) {a = a + 1;} DEBUG a;", 10)
+    buildtest("int a = 10; while (a != 0) {a = a - 1;} DEBUG a;", 0)
 
 def test_for1():
-    buildtest("for(var j = 0; j != 0; j = j + 1) {ERR;}", None)
-    buildtest("for (var i = 0; i < 1; i = i + 1) {}", None)
-    buildtest("var i = 0; for (var j = 0; j <= 10; j = j + 1) {i = j;} DEBUG i;", 10)
+    buildtest("for(int j = 0; j != 0; j = j + 1) {ERR;}", None)
+    buildtest("for (int i = 0; i < 1; i = i + 1) {}", None)
+    buildtest("int i = 0; for (int j = 0; j <= 10; j = j + 1) {i = j;} DEBUG i;", 10)
 
 def test_fn1():
-    buildtest("fun f() {DEBUG 1;} f();", 1)
-    buildtest("fun f() {DEBUG 1;}", None)
-    buildtest("fun f() {return 1;} DEBUG f();", 1)
-    buildtest("fun f() {return 1;} f(); f(); f(); DEBUG f();", 1)
-    buildtest("fun add(a, b) {return a + b;} DEBUG add(1, 5);", 6)
-    buildtest("fun add(a, b) {return a + b;} DEBUG add(add(1, 2), add(3, 4));", 10)
-    buildtest("fun add(a, b) {return a + b;} DEBUG add(add(add(add(1, 0), 2), 3), 4);", 10)
+    buildtest("int f() {DEBUG 1;} f();", 1)
+    buildtest("int f() {DEBUG 1;}", None)
+    buildtest("int f() {return 1;} DEBUG f();", 1)
+    buildtest("int f() {return 1;} f(); f(); f(); DEBUG f();", 1)
+    buildtest("int add(int a, int b) {return a + b;} DEBUG add(1, 5);", 6)
+    buildtest("int add(int a, int b) {return a + b;} DEBUG add(add(1, 2), add(3, 4));", 10)
+    buildtest("int add(int a, int b) {return a + b;} DEBUG add(add(add(add(1, 0), 2), 3), 4);", 10)
 
 def test_fn2():
-    buildtest("fun f() {var a = 1; return 2;} DEBUG f();", 2)
-    buildtest("fun f() {return 1; DEBUG 10;} f();", None)
+    buildtest("int f() {int a = 1; return 2;} DEBUG f();", 2)
+    buildtest("int f() {return 1; DEBUG 10;} f();", None)
     buildtest("""
-        fun f() {
-            var a = 6;
+        int f() {
+            int a = 6;
             if (true) {
                 return a;
             } else {
@@ -126,8 +127,8 @@ def test_fn2():
         DEBUG f();
     """, 6)
     buildtest("""
-        fun f() {
-            var a = 6;
+        int f() {
+            int a = 6;
             if (false) {
                 ERR;
             } else {
@@ -139,7 +140,7 @@ def test_fn2():
 
 def test_fn3():
     buildtest("""
-        fun f(x) {
+        int f(int x) {
             if (x == 0) {
                 return 0;
             } else {
@@ -154,7 +155,7 @@ def test_fn4():
         return 1 if i == 0 or i == 1 else fib(i-1) + fib(i-2)
 
     for i in range(10):
-        buildtest("fun fib(i) {             \
+        buildtest("int fib(int i) {             \
             if (i == 0 or i == 1) {         \
                 return 1;                   \
             } else {                        \
@@ -164,11 +165,11 @@ def test_fn4():
 
 def test_fn5():
     buildtest("""
-        fun add(a, b) {
+        int add(int a, int b) {
             return a + b;
         }
 
-        fun mul(a, b) {
+        int mul(int a, int b) {
             return a * b;
         }
         DEBUG mul(add(1, 2), add(5, 5));
@@ -200,19 +201,21 @@ def test_expr_old12():
     buildtest("DEBUG 1 == 2 or 2 == 2;", True)
 
 def test_expr_old13():
-    buildtest("var i = 1; DEBUG i == 1 or i == 0;", True)
+    buildtest("int i = 1; DEBUG i == 1 or i == 0;", True)
 
 
 def test_shadow1():
-    buildtest("var a = 1; {a = 2;} DEBUG a;", 2)
+    buildtest("int a = 1; {a = 2;} DEBUG a;", 2)
 
 def test_shadow2():
-    buildtest("var a = 1; {var a = 2;} DEBUG a;", 1)
+    buildtest("int a = 1; {int a = 2;} DEBUG a;", 1)
 
 
 def buildtest(code , value):
     tokens = tokenize(code)
     ast = parse(tokens)
+    typecheck(ast)
+
     instr = comp(ast)
 
     emu = Emu(instr)

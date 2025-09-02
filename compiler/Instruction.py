@@ -31,11 +31,13 @@ class Instructions:
         return self + o
     
     def commentFirst(self, text):
-        self.instr[0].comment = text
+        if self.instr:
+            self.instr[0].comment = text
         return self
     
     def commentLast(self, text):
-        self.instr[-1].comment = text
+        if self.instr:
+            self.instr[-1].comment = text
         return self
     
     def __getitem__(self, idx):

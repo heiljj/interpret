@@ -1,5 +1,20 @@
 from Tokenizer import Token, TokenType, reverse_token_map
 
+class Type:
+    def __init__(self, name, pointer=False, size=1, properties={}):
+        self.name = name
+        self.pointer = pointer
+        self.size = size
+        self.properties = properties # name -> type
+    
+    def __eq__(self, o):
+        return self.name == o.name and self.pointer == o.pointer
+    
+    def __str__(self):
+        return str(self.name)
+
+INT = Type("int")
+
 class Err:
     def __init__(self):
         pass
@@ -102,10 +117,12 @@ class Break:
 
 
 class FunctionDecl:
-    def __init__(self, name, args, block):
+    def __init__(self, name, args, block, type_, argtypes):
         self.name = name
         self.args = args
         self.block = block
+        self.type = type_
+        self.argtypes = argtypes
     
     def resolve(self, interpret):
         return interpret.resolveFunctionDecl(self)
@@ -147,9 +164,10 @@ class FunctionCall:
 
 
 class VariableDeclAndSet:
-    def __init__(self, name, expr):
+    def __init__(self, name, expr, type_):
         self.name = name
         self.expr = expr
+        self.type = type_
     
     def resolve(self, interpret):
         return interpret.resolveVariableDeclAndSet(self)
@@ -159,8 +177,9 @@ class VariableDeclAndSet:
 
 
 class VariableDecl:
-    def __init__(self, name):
+    def __init__(self, name, type_):
         self.name = name
+        self.type = type_
     
     def resolve(self, interpret):
         return interpret.resolveVariableDecl(self)
@@ -241,6 +260,10 @@ class Parser:
         self.saved_index = 0
         self.end = len(self.tokens)
 
+        self.registered_types = {
+            "int" : INT
+        }
+
         self.parsers = [
             self.parseStatements,                               #0
             self.parseFunctionDefinition,                       #1
@@ -279,6 +302,9 @@ class Parser:
         self.var_decl_prec = 7
 
         self.ast = self.parsePrec(0)
+    
+    def getType(self, name):
+        return self.registered_types[name]
     
     def match(self, t):
         token = self.tokens[self.index]
@@ -331,13 +357,13 @@ class Parser:
 
         match token.kind:
             case TokenType.NUM:
-                return Value(TokenType.NUM, token.value)
+                return Value(INT, token.value)
             case TokenType.STR:
                 return Value(TokenType.STR, token.value)
             case TokenType.IDENTIFIER:
                 return VariableGet(token.value)
             case TokenType.BOOL:
-                return Value(TokenType.BOOL, token.value)
+                return Value(INT, int(token.value))
             case TokenType.ERR:
                 return Err()
             case _:
@@ -376,18 +402,22 @@ class Parser:
     
     
     def parseVarDecl(self, prec):
-        if not self.tryMatch(TokenType.DECL):
+        # if not self.tryMatch(TokenType.DECL):
+        #     return self.parsePrec(prec + 1)
+        
+        if not (type_ := self.tryMatch(TokenType.IDENTIFIER)):
             return self.parsePrec(prec + 1)
 
-        identifier = self.match(TokenType.IDENTIFIER)
-
+        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            self.previous()
+            return self.parsePrec(prec + 1)
+        
+        #NOTE this will break if something with greater prec has two IDs in a row
         if not self.tryMatch(TokenType.DECL_EQ):
-            self.match(TokenType.SEMI)
-            return VariableDecl(identifier.value)
+            return VariableDecl(identifier.value, self.getType(type_.value))
 
         right = self.parsePrec(self.expression_prec)
-        return VariableDeclAndSet(identifier.value, right)
-
+        return VariableDeclAndSet(identifier.value, right, self.getType(type_.value))
 
 
     def parseVarSet(self, prec):
@@ -407,7 +437,7 @@ class Parser:
             return self.parsePrec(prec + 1)
         
         if self.tryMatch(TokenType.BRAC_RIGHT):
-            return Block([])
+            return Block(Statements([]))
         
         middle = self.parsePrec(0)
         self.match(TokenType.BRAC_RIGHT)
@@ -416,23 +446,34 @@ class Parser:
 
 
     def parseFunctionDefinition(self, prec):
-            if not self.tryMatch(TokenType.FUNC):
+            if not (type_ := self.tryMatch(TokenType.IDENTIFIER)):
+                return self.parsePrec(prec + 1)
+            
+            if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+                self.previous()
                 return self.parsePrec(prec + 1)
 
-            identifier = self.match(TokenType.IDENTIFIER).value
-            self.match(TokenType.PAR_LEFT)
+            identifier = identifier.value
+
+            if not self.tryMatch(TokenType.PAR_LEFT):
+                self.previous()
+                self.previous()
+                return self.parsePrec(prec + 1)
 
             args = []
+            arg_types = []
 
-            while (token := self.tryMatch(TokenType.IDENTIFIER)):
-                args.append(token.value)
+            while (arg_type := self.tryMatch(TokenType.IDENTIFIER)):
+                arg = self.match(TokenType.IDENTIFIER)
+                args.append(arg.value)
+                arg_types.append(self.getType(arg_type.value))
 
                 if not self.tryMatch(TokenType.COMMA):
                     break
             
             self.match(TokenType.PAR_RIGHT)
             block = self.parsePrec(self.block_prec)
-            return FunctionDecl(identifier, args, block)
+            return FunctionDecl(identifier, args, block, self.getType(type_.value), arg_types)
     
 
     def parseFunctionCall(self, prec):
@@ -465,20 +506,21 @@ class Parser:
     
 
     def parseIf(self, prec):
-        if self.tryMatch(TokenType.IF):
-            self.match(TokenType.PAR_LEFT)
-            cond = self.parsePrec(self.expression_prec)
-            self.match(TokenType.PAR_RIGHT)
+        if not self.tryMatch(TokenType.IF):
+            return self.parsePrec(prec + 1)
 
-            if_expr = self.parsePrec(self.block_prec)
+        self.match(TokenType.PAR_LEFT)
+        cond = self.parsePrec(self.expression_prec)
+        self.match(TokenType.PAR_RIGHT)
 
-            if not self.tryMatch(TokenType.ELSE):
-                return If(cond, if_expr, None)
-            
-            else_expr = self.parsePrec(self.block_prec)
-            return If(cond, if_expr, else_expr)
+        if_expr = self.parsePrec(self.block_prec)
+
+        if not self.tryMatch(TokenType.ELSE):
+            return If(cond, if_expr, None)
         
-        return self.parsePrec(prec + 1)
+        else_expr = self.parsePrec(self.block_prec)
+        return If(cond, if_expr, else_expr)
+        
 
 
     def parseWhile(self, prec):
