@@ -1,5 +1,4 @@
-from Tokenizer import TokenType
-from Parser import Type, INT
+from Parser import INT
 from Instruction import *
 
 class TypeError(Exception):

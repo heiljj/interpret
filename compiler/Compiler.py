@@ -176,7 +176,7 @@ class Compiler:
         
     
     def resolveVariableDeclAndSet(self, vardeclandset):
-
+        #TODO add init for dif types
         instr = vardeclandset.expr.resolve(self)
         instr.commentFirst(f"#var {vardeclandset.name} = {vardeclandset.expr}")
         instr += self.pop("t0")

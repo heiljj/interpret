@@ -1,20 +1,59 @@
 from Tokenizer import Token, TokenType, reverse_token_map
 
-class Type:
-    def __init__(self, name, pointer=False, size=1, properties={}):
+class BaseType:
+    def __init__(self, name, bytes):
         self.name = name
-        self.pointer = pointer
-        self.size = size
-        self.properties = properties # name -> type
+        self.bytes = bytes
     
     def __eq__(self, o):
-        return self.name == o.name and self.pointer == o.pointer
+        return self.name == o.name 
     
     def __str__(self):
         return str(self.name)
+    
+    def getBytes(self):
+        return self.bytes
 
-INT = Type("int")
-CHAR = Type("char")
+# NOTE this might be better to be apart of the basetype instead 
+class StructType:
+    def __init__(self, name, properties, property_types):
+        if len(properties) != len(property_types):
+            raise Exception
+
+        self.name = name
+        self.properties = properties
+        self.property_types = property_types
+
+        self.property_byte_offsets = {}
+
+        s = 0
+        for i in range(len(self.properties)):
+            self.property_byte_offsets[self.properties[i]] = s
+            s += self.property_types[i].getBytes()
+        
+        self.bytes = s
+    
+    def getBytes(self):
+        return self.bytes
+    
+    def getPropertyOffset(self, name):
+        return self.property_byte_offsets[name]
+    
+    def getPropertySize(self, name):
+        return self.property_types[self.properties.index(name)].getBytes()
+
+
+class PointerType:
+    def __init__(self, type_, amount=1):
+        self.type = type_
+        self.amount = amount
+    
+    def getBytes(self):
+        return 1
+
+INT = BaseType("int", 1)
+CHAR = BaseType("char", 1)
+
 
 class Err:
     def __init__(self):
@@ -302,6 +341,7 @@ class Parser:
         self.block_prec = 5
         self.function_prec = 1
         self.var_decl_prec = 7
+        self.const_prec = 28
 
         self.ast = self.parsePrec(0)
     
@@ -406,22 +446,31 @@ class Parser:
     
     
     def parseVarDecl(self, prec):
-        # if not self.tryMatch(TokenType.DECL):
-        #     return self.parsePrec(prec + 1)
+        saved_index = self.index
         
         if not (type_ := self.tryMatch(TokenType.IDENTIFIER)):
             return self.parsePrec(prec + 1)
+        
+
+        if self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
+            amount = self.parsePrec(self.const_prec).value
+            type_ = self.getType(type_.value)
+            type_ = PointerType(type_, amount)
+            self.match(TokenType.SQUARE_BRAC_RIGHT)
 
         if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
-            self.previous()
+            self.index = saved_index
             return self.parsePrec(prec + 1)
+        
+        if type(type_) != TokenType.IDENTIFIER:
+            type_ = self.getType(type_.value)
         
         #NOTE this will break if something with greater prec has two IDs in a row
         if not self.tryMatch(TokenType.DECL_EQ):
-            return VariableDecl(identifier.value, self.getType(type_.value))
+            return VariableDecl(identifier.value, type_)
 
         right = self.parsePrec(self.expression_prec)
-        return VariableDeclAndSet(identifier.value, right, self.getType(type_.value))
+        return VariableDeclAndSet(identifier.value, right, type_)
 
 
     def parseVarSet(self, prec):

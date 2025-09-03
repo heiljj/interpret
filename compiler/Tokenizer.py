@@ -6,48 +6,50 @@ class TokenType(Enum):
     PAR_RIGHT = 2
     BRAC_LEFT = 3
     BRAC_RIGHT = 4
+    SQUARE_BRAC_LEFT = 5
+    SQUARE_BRAC_RIGHT = 6
 
-    QUOTE = 5
-    SEMI = 6
-    COMMA = 7
+    QUOTE = 7
+    SEMI = 8
+    COMMA = 9
 
-    NUM = 8
-    STR = 9
-    BOOL = 10
-    IDENTIFIER = 11
+    NUM = 10
+    STR = 11
+    BOOL = 12
+    IDENTIFIER = 13
 
-    FUNC = 12
-    DECL_EQ = 13
-    DECL = 14
+    FUNC = 14
+    DECL_EQ = 15
+    DECL = 16
 
-    OP_PLUS = 15
-    OP_MINUS = 16
-    OP_MUL = 17
-    OP_DIV = 18
+    OP_PLUS = 17
+    OP_MINUS = 18
+    OP_MUL = 19
+    OP_DIV = 20
 
-    OR = 19
-    AND = 20
+    OR = 21
+    AND = 22
 
-    COMP_EQ = 21
-    COMP_NEQ = 22
-    COMP_LT_EQ = 23
-    COMP_GT_EQ = 24
-    COMP_LT = 25
-    COMP_GT = 26
+    COMP_EQ = 23
+    COMP_NEQ = 24
+    COMP_LT_EQ = 25
+    COMP_GT_EQ = 26
+    COMP_LT = 27
+    COMP_GT = 28
 
-    DEBUG = 27
+    DEBUG = 29
 
-    IF = 28
-    ELSE = 29
-    WHILE = 30
-    FOR = 31
-    CONTINUE = 32
-    BREAK = 33
-    RETURN = 34
+    IF = 30
+    ELSE = 31
+    WHILE = 32
+    FOR = 33
+    CONTINUE = 34
+    BREAK = 35
+    RETURN = 36
 
-    CLASS = 35
-    DOT = 36
-    ERR = 37
+    CLASS = 37
+    DOT = 38
+    ERR = 39
 
 class Token:
     def __init__(self, kind: TokenType, value=None):
@@ -59,6 +61,8 @@ token_map = {
     ")" : TokenType.PAR_RIGHT,
     "{" : TokenType.BRAC_LEFT,
     "}" : TokenType.BRAC_RIGHT,
+    "[" : TokenType.SQUARE_BRAC_LEFT,
+    "]" : TokenType.SQUARE_BRAC_RIGHT,
 
     "+" : TokenType.OP_PLUS,
     "-" : TokenType.OP_MINUS,
@@ -218,7 +222,7 @@ class Tokenizer:
                 while self.isNext():
                     c = self.peek()
 
-                    if c == " " or c in "({!=;})+-/*,.":
+                    if c == " " or c in "({!=;})+-/*,.[]":
                         break
 
                     chars += self.next()
