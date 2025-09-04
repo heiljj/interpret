@@ -13,6 +13,9 @@ class BaseType:
     
     def getWords(self):
         return self.words
+    
+    def equiv(self, o):
+        return self == o
 
 # NOTE this might be better to be apart of the basetype instead 
 class StructType:
@@ -41,6 +44,34 @@ class StructType:
     
     def getPropertySize(self, name):
         return self.property_types[self.properties.index(name)].getWords()
+    
+    def equiv(self, o):
+        if type(o) != UnknownStructType:
+            return self == o
+        
+        if len(o.property_types) != len(self.property_types):
+            return False
+        
+        for i in range(len(o.property_types)):
+            if o.property_types[i] != self.property_types[i]:
+                return False
+        
+        return True
+    
+    def __eq__(self, o):
+        if type(o) == BaseType:
+            return False
+        # structs with the same stuff are considered equiv - this is probably fine?
+        return self.property_types == o.property_types
+    
+    def __ne__(self, o):
+        return not self == o
+        
+        
+
+class UnknownStructType:
+    def __init__(self, property_types):
+        self.property_types = property_types
 
 
 class PointerType:

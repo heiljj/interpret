@@ -1,6 +1,6 @@
 from Tokenizer import TokenType
 from Instruction import *
-from Parser import INT, CHAR, VOID, PointerType
+from Parser import INT, CHAR, VOID, PointerType, StructType
 from StackManager import StackManager
 
 class Compiler:
@@ -211,6 +211,7 @@ class Compiler:
         return instr
 
     def resolveVariableSet(self, varset):
+        # TODO account for multiword values
         instr = varset.expr.resolve(self)
         instr.commentFirst(f"#{varset.name} = {varset.expr}")
         instr += self.pop("t0")
@@ -221,6 +222,7 @@ class Compiler:
         return instr
     
     def resolveVariableGet(self, varget):
+        # TODO account for multiword values
         stack_target = self.get(varget.name)
         stack_difference = stack_target - self.stack.getCurrent()
 

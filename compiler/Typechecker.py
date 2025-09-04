@@ -1,4 +1,4 @@
-from Parser import INT, CHAR, VOID, BaseType, StructType, PointerType
+from Parser import INT, CHAR, VOID, BaseType, StructType, PointerType, UnknownStructType
 
 from Instruction import *
 
@@ -83,6 +83,13 @@ class Typechecker:
     def resolveValue(self, value):
         return value.type
     
+    def resolveStruct(self, struct):
+        types = []
+        for expr in struct.exprs:
+            types.append(expr.resolve(self))
+        
+        return UnknownStructType(types)
+    
     def resolveList(self, l):
         if not l.exprs:
             return PointerType(VOID, 0)
@@ -109,16 +116,6 @@ class Typechecker:
         
         op.type = left
         return left
-
-        
-    def resolveVariableDeclAndSet(self, vardeclandset):
-        t = vardeclandset.expr.resolve(self)
-
-        if t != vardeclandset.type:
-            raise TypeError(f"{t} != {vardeclandset.type} on {vardeclandset}")
-        
-        self.decl(vardeclandset.name)
-        self.set(vardeclandset.name, vardeclandset.type)
             
     def resolveVariableDecl(self, vardecl):
         self.decl(vardecl.name)
@@ -128,7 +125,7 @@ class Typechecker:
         expected_type = self.get(varset.name)
         actual = varset.expr.resolve(self)
 
-        if expected_type != actual:
+        if not expected_type.equiv(actual):
             raise TypeError(f"variable {varset.name} of type {varset.type} assigned {varset.expr}")
     
     def resolveVariableGet(self, varget):
@@ -211,7 +208,7 @@ class Typechecker:
     
     def resolveReturn(self, ret):
         t = ret.expr.resolve(self)
-        if t != self.getExpectedReturnType():
+        if self.getExpectedReturnType() != t:
             raise TypeError("wrong return type")
 
         
