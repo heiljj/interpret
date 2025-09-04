@@ -213,30 +213,17 @@ class FunctionCall:
         return f"{self.name}({arg_str})"
     
 
-
-class VariableDeclAndSet:
+class VariableDecl:
     def __init__(self, name, expr, type_):
         self.name = name
         self.expr = expr
         self.type = type_
     
     def resolve(self, visitor):
-        return visitor.resolveVariableDeclAndSet(self)
-    
-    def __str__(self):
-        return f"var {self.name} = {self.expr};"
-
-
-class VariableDecl:
-    def __init__(self, name, type_):
-        self.name = name
-        self.type = type_
-    
-    def resolve(self, visitor):
         return visitor.resolveVariableDecl(self)
     
     def __str__(self):
-        return f"var {self.name};"
+        return f"var {self.name} = {self.expr};"
 
 
 class VariableSet:
@@ -501,10 +488,10 @@ class Parser:
         
         #NOTE this will break if something with greater prec has two IDs in a row
         if not self.tryMatch(TokenType.DECL_EQ):
-            return VariableDecl(identifier.value, type_)
+            return VariableDecl(identifier.value, None, type_)
 
         right = self.parsePrec(self.expression_prec)
-        return VariableDeclAndSet(identifier.value, right, type_)
+        return VariableDecl(identifier.value, right, type_)
 
 
     def parseVarSet(self, prec):

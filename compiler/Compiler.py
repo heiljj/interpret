@@ -28,19 +28,6 @@ class Compiler:
     def endScope(self):
         return self.locals.pop()
     
-    def decl(self, var, type_):
-        amount = 1
-        size = None
-
-        if type(type_) == PointerType:
-            amount = type_.amount
-            size = type_.getPointedWords()
-        else:
-            size = type_.getWords()
-
-        self.bindPosition(var, 0)
-        self.current_stack += 4 * amount * size
-    
     def bindPosition(self, varname, rel_stack_pos):
         if self.locals:
             locals = self.locals[-1]
@@ -75,14 +62,19 @@ class Compiler:
         
         return instr
     
-    def pushValue(self, binary):
-        self.current_stack += 4
-
+    def pushBinaryInstr(self, binary):
         return Instructions(
             Addi("t0", "x0", binary),
             Sw("sp", "t0", 0),
             Addi("sp", "sp", 4)
         )
+
+    def pushValue(self, value):
+        # TODO take in list/value 
+        self.current_stack += 4
+
+        return self.pushBinaryInstr(value)
+
 
     def pushReg(self, reg):
         self.current_stack += 4
@@ -189,23 +181,19 @@ class Compiler:
 
         return instr
         
-    
-    def resolveVariableDeclAndSet(self, vardeclandset):
-        # TODO in the future directly bind value instead of putting it into t0,
-        # result of the expr may be a list
-        # TODO use the declared position then call set
-        instr = vardeclandset.expr.resolve(self)
-        instr.commentFirst(f"#var {vardeclandset.name} = {vardeclandset.expr}")
-        instr += self.pop("t0")
-        self.decl(vardeclandset.name, vardeclandset.type)
-
-        instr += Sw("sp", "t0", 0)
-        instr += Addi("sp", "sp", 4)
-        instr.commentLast("#END varsetanddecl")
-        return instr
-    
     def resolveVariableDecl(self, vardecl):
-        self.decl(vardecl.name)
+        self.bindPosition(vardecl.name, 0)
+
+        if vardecl.expr:
+            instr = vardecl.expr.resolve(self)
+            instr.commentLast("END varsetanddecl")
+            return instr
+
+        instr = Instructions()
+        for _ in range(vardecl.type.getWords()):
+            instr += self.pushValue(0)
+
+        return instr
 
     def resolveVariableSet(self, varset):
         instr = varset.expr.resolve(self)
