@@ -1,4 +1,5 @@
-from Parser import INT
+from Parser import INT, CHAR, DOUBLE, VOID, BaseType, StructType, PointerType
+
 from Instruction import *
 
 class TypeError(Exception):
@@ -82,6 +83,20 @@ class Typechecker:
     def resolveValue(self, value):
         return value.type
     
+    def resolveList(self, l):
+        if not l.exprs:
+            return PointerType(VOID, 0)
+        
+        expected_type = l.exprs[0].resolve(self)
+        for i in range(1, len(l.exprs)):
+            actual_type = l.exprs[i].resolve(self)
+
+            if expected_type != actual_type:
+                raise TypeError(f"List init type mismatch expected {expected_type} was {actual_type}")
+        
+        return PointerType(actual_type, len(l.exprs))
+
+
     def resolveErr(self, err):
         pass
             

@@ -1,11 +1,11 @@
 from Tokenizer import TokenType
 from Instruction import *
-from Parser import INT, CHAR
+from Parser import INT, CHAR, PointerType
+from StackManager import StackManager
 
 class Compiler:
     def __init__(self, ast):
         self.ast = ast
-        self.stream = ""
 
         self.current_stack = 0
 
@@ -21,15 +21,25 @@ class Compiler:
         start = Instructions(Jal("x0", len(self.function_instr) * 4 + 4))
         return start + self.function_instr + instr
     
+    
     def beginScope(self):
         self.locals.append({})
     
     def endScope(self):
         return self.locals.pop()
     
-    def decl(self, var):
+    def decl(self, var, type_):
+        amount = 1
+        size = None
+
+        if type(type_) == PointerType:
+            amount = type_.amount
+            size = type_.getPointedWords()
+        else:
+            size = type_.getWords()
+
         self.bindPosition(var, 0)
-        self.current_stack += 1
+        self.current_stack += 4 * amount * size
     
     def bindPosition(self, varname, rel_stack_pos):
         if self.locals:
@@ -58,8 +68,6 @@ class Compiler:
         
         return self.globals[var]
     
-
-
     def resolveStatements(self, stmts):
         instr = Instructions()
         for stmt in stmts.statements:
@@ -68,7 +76,7 @@ class Compiler:
         return instr
     
     def pushValue(self, binary):
-        self.current_stack += 1
+        self.current_stack += 4
 
         return Instructions(
             Addi("t0", "x0", binary),
@@ -77,7 +85,7 @@ class Compiler:
         )
 
     def pushReg(self, reg):
-        self.current_stack += 1
+        self.current_stack += 4
 
         return Instructions(
             Sw("sp", reg, 0),
@@ -85,7 +93,7 @@ class Compiler:
         )
     
     def pop(self, reg):
-        self.current_stack -= 1
+        self.current_stack -= 4
 
         return Instructions(
                 Addi("sp", "sp", -4),
@@ -93,13 +101,20 @@ class Compiler:
         )
     
     def resolveValue(self, value):
-        if value.type == INT:
+        if value.type == INT or type(value) == PointerType:
             return self.pushValue(Binary(value.value))
         
         if value.type == CHAR:
             return self.pushValue(ord(value.value))
 
         raise NotImplementedError
+    
+    def resolveList(self, l):
+        instr = Instructions()
+        for expr in l.exprs:
+            instr += expr.resolve(self)
+        
+        return instr
     
     def resolveErr(self, err):
         return Instructions(RaiseError())
@@ -176,11 +191,13 @@ class Compiler:
         
     
     def resolveVariableDeclAndSet(self, vardeclandset):
-        #TODO add init for dif types
+        # TODO in the future directly bind value instead of putting it into t0,
+        # result of the expr may be a list
+        # TODO use the declared position then call set
         instr = vardeclandset.expr.resolve(self)
         instr.commentFirst(f"#var {vardeclandset.name} = {vardeclandset.expr}")
         instr += self.pop("t0")
-        self.decl(vardeclandset.name)
+        self.decl(vardeclandset.name, vardeclandset.type)
 
         instr += Sw("sp", "t0", 0)
         instr += Addi("sp", "sp", 4)
@@ -195,14 +212,14 @@ class Compiler:
         instr.commentFirst(f"#{varset.name} = {varset.expr}")
         instr += self.pop("t0")
 
-        stack_diff = 4 * (self.get(varset.name) - self.current_stack)
+        stack_diff = self.get(varset.name) - self.current_stack
         instr += Sw("sp", "t0", stack_diff)
         instr.commentLast(f"END varset")
         return instr
     
     def resolveVariableGet(self, varget):
         stack_target = self.get(varget.name)
-        stack_difference = 4 * (stack_target - self.current_stack)
+        stack_difference = stack_target - self.current_stack
 
         instr = Instructions(Lw("t0", "sp", stack_difference))
         instr.commentFirst(f"varget {varget.name}")
@@ -214,7 +231,9 @@ class Compiler:
     def resolveExprStatement(self, exprs):
         instr = exprs.s.resolve(self)
         instr += Addi("sp", "sp", -4)
-        self.current_stack -= 1
+        self.current_stack -= 4
+        # TODO if this is a list it causes issues 
+        # fix is to start tracking stack types
         return instr
     
     def resolveDebug(self, debug):
@@ -233,7 +252,7 @@ class Compiler:
         instr = block.statements.resolve(self)
         instr.commentFirst("#block start")
         
-        stack_diff = 4 * (stack_start - self.current_stack)
+        stack_diff = stack_start - self.current_stack
         instr += Addi("sp", "sp", stack_diff)
         instr.commentLast("#END block")
         self.current_stack = stack_start
@@ -306,7 +325,7 @@ class Compiler:
         self.beginScope()
 
         for i, arg in enumerate(fn.args):
-            self.bindPosition(arg, -1 * (len(fn.args) - i))
+            self.bindPosition(arg, -4 * (len(fn.args) - i))
         
         instr = self.pushReg("ra")
         instr.commentFirst(f"# function {fn.name}")
@@ -326,7 +345,7 @@ class Compiler:
         instr.commentLast("# restore stack")
 
         # copy old stack
-        b = fn.type.getBytes()
+        b = fn.type.getWords()
 
         for i in range(b):
             instr += Lw("t0", "a0", -4 * b + i * 4)
@@ -345,8 +364,8 @@ class Compiler:
             instr += arg.resolve(self)
 
         instr += Jalr("ra", "x0", self.functions[call.name])
-        self.current_stack += 1
-        self.current_stack -= len(call.args)
+        self.current_stack += 4
+        self.current_stack -= 4 * len(call.args)
         instr.commentFirst(f"#CALL {call.name}")
         instr.commentLast("#END call")
         return instr
@@ -354,7 +373,7 @@ class Compiler:
     def resolveReturn(self, ret):
         instr = ret.expr.resolve(self)
         instr += Addi("a0", "sp", 0)
-        instr += Addi("sp", "sp", 4 * self.function_stack - 4 * self.current_stack)
+        instr += Addi("sp", "sp", self.function_stack - self.current_stack)
         instr += FutureBeq("x0", "x0")
         instr.commentFirst("# return start")
         instr.commentLast("# return jump")

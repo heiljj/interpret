@@ -1,9 +1,9 @@
 from Tokenizer import Token, TokenType, reverse_token_map
 
 class BaseType:
-    def __init__(self, name, bytes):
+    def __init__(self, name, words):
         self.name = name
-        self.bytes = bytes
+        self.words = words
     
     def __eq__(self, o):
         return self.name == o.name 
@@ -11,8 +11,8 @@ class BaseType:
     def __str__(self):
         return str(self.name)
     
-    def getBytes(self):
-        return self.bytes
+    def getWords(self):
+        return self.words
 
 # NOTE this might be better to be apart of the basetype instead 
 class StructType:
@@ -24,50 +24,61 @@ class StructType:
         self.properties = properties
         self.property_types = property_types
 
-        self.property_byte_offsets = {}
+        self.property_word_offsets = {}
 
         s = 0
         for i in range(len(self.properties)):
-            self.property_byte_offsets[self.properties[i]] = s
-            s += self.property_types[i].getBytes()
+            self.property_word_offsets[self.properties[i]] = s
+            s += self.property_types[i].getWords()
         
-        self.bytes = s
+        self.words = s
     
-    def getBytes(self):
-        return self.bytes
+    def getWords(self):
+        return self.words
     
     def getPropertyOffset(self, name):
         return self.property_byte_offsets[name]
     
     def getPropertySize(self, name):
-        return self.property_types[self.properties.index(name)].getBytes()
+        return self.property_types[self.properties.index(name)].getWords()
 
 
 class PointerType:
-    def __init__(self, type_, amount=1):
+    def __init__(self, type_, amount=0):
         self.type = type_
         self.amount = amount
     
-    def getBytes(self):
+    def getWords(self):
+        if self.amount:
+            return self.type.getWords() * self.amount
         return 1
+    
+    def getPointedWords(self):
+        return self.type.getWords()
+    
+    def __eq__(self, o):
+        return self.type == o.type and self.amount == o.amount
 
 INT = BaseType("int", 1)
 CHAR = BaseType("char", 1)
+# TODO remove
+DOUBLE = BaseType("double", 2)
+VOID = BaseType("void", 1)
 
 
 class Err:
     def __init__(self):
         pass
 
-    def resolve(self, interpret):
-        return interpret.resolveErr(self)
+    def resolve(self, visitor):
+        return visitor.resolveErr(self)
 
 class Debug:
     def __init__(self, expr):
         self.expr = expr
     
-    def resolve(self, interpret):
-        return interpret.resolveDebug(self)
+    def resolve(self, visitor):
+        return visitor.resolveDebug(self)
     
     def __str__(self):
         return f"DEBUG {self.expr}"
@@ -77,8 +88,8 @@ class Statements:
     def __init__(self, statements):
         self.statements = statements
     
-    def resolve(self, interpret):
-        return interpret.resolveStatements(self)
+    def resolve(self, visitor):
+        return visitor.resolveStatements(self)
     
     def __str__(self):
         return "".join(map(lambda x: str(x) + "\n", self.statements))
@@ -88,8 +99,8 @@ class Block:
     def __init__(self, statements: Statements):
         self.statements = statements
     
-    def resolve(self, interpret):
-        return interpret.resolveBlock(self)
+    def resolve(self, visitor):
+        return visitor.resolveBlock(self)
     
     def __str__(self):
         return f"{{{self.statements}}}"
@@ -101,8 +112,8 @@ class If:
         self.if_expr = if_expr
         self.else_expr = else_expr
     
-    def resolve(self, interpret):
-        return interpret.resolveIf(self)
+    def resolve(self, visitor):
+        return visitor.resolveIf(self)
 
     def __str__(self):
         if self.else_expr:
@@ -114,8 +125,8 @@ class While:
         self.cond = cond
         self.expr = expr
     
-    def resolve(self, interpret):
-        return interpret.resolveWhile(self)
+    def resolve(self, visitor):
+        return visitor.resolveWhile(self)
     
     def __str__(self):
         return f"while ({self.cond}) {self.expr}"
@@ -127,8 +138,8 @@ class For:
         self.assign = assign
         self.block = block
     
-    def resolve(self, interpret):
-        return interpret.resolveFor(self)
+    def resolve(self, visitor):
+        return visitor.resolveFor(self)
     
     def __str__(self):
         return f"for ({self.decl}; {self.cond}; {self.assign}) {self.block}"
@@ -137,20 +148,20 @@ class ExprStatement:
     def __init__(self, s):
         self.s = s
     
-    def resolve(self, interpret):
-        return interpret.resolveExprStatement(self)
+    def resolve(self, visitor):
+        return visitor.resolveExprStatement(self)
 
 class Continue:
-    def resolve(self, interpret):
-        interpret.resolveContinue(self)
+    def resolve(self, visitor):
+        visitor.resolveContinue(self)
     
     def __str__(self):
         return "continue;"
     
 
 class Break:
-    def resolve(self, interpret):
-        interpret.resolveBreak(self)
+    def resolve(self, visitor):
+        visitor.resolveBreak(self)
     
     def __str__(self):
         return "break;"
@@ -164,8 +175,8 @@ class FunctionDecl:
         self.type = type_
         self.argtypes = argtypes
     
-    def resolve(self, interpret):
-        return interpret.resolveFunctionDecl(self)
+    def resolve(self, visitor):
+        return visitor.resolveFunctionDecl(self)
 
     def __str__(self):
         arg_str = "".join(map(lambda x : x + ", ", self.args))
@@ -179,8 +190,8 @@ class Return:
     def __init__(self, expr):
         self.expr = expr
     
-    def resolve(self, interpret):
-        return interpret.resolveReturn(self)
+    def resolve(self, visitor):
+        return visitor.resolveReturn(self)
     
     def __str__(self):
         return f"return {self.expr};"
@@ -191,8 +202,8 @@ class FunctionCall:
         self.name = name
         self.args = args
     
-    def resolve(self, interpret):
-        return interpret.resolveFunctionCall(self)
+    def resolve(self, visitor):
+        return visitor.resolveFunctionCall(self)
     
     def __str__(self):
         arg_str = "".join(map(lambda x : str(x) + ", ", self.args))
@@ -209,8 +220,8 @@ class VariableDeclAndSet:
         self.expr = expr
         self.type = type_
     
-    def resolve(self, interpret):
-        return interpret.resolveVariableDeclAndSet(self)
+    def resolve(self, visitor):
+        return visitor.resolveVariableDeclAndSet(self)
     
     def __str__(self):
         return f"var {self.name} = {self.expr};"
@@ -221,8 +232,8 @@ class VariableDecl:
         self.name = name
         self.type = type_
     
-    def resolve(self, interpret):
-        return interpret.resolveVariableDecl(self)
+    def resolve(self, visitor):
+        return visitor.resolveVariableDecl(self)
     
     def __str__(self):
         return f"var {self.name};"
@@ -233,8 +244,8 @@ class VariableSet:
         self.name = name
         self.expr = expr
     
-    def resolve(self, interpret):
-        return interpret.resolveVariableSet(self)
+    def resolve(self, visitor):
+        return visitor.resolveVariableSet(self)
     
     def __str__(self):
         return f"{self.name} = {self.expr};"
@@ -244,8 +255,8 @@ class VariableGet:
     def __init__(self, name):
         self.name = name
     
-    def resolve(self, interpret):
-        return interpret.resolveVariableGet(self)
+    def resolve(self, visitor):
+        return visitor.resolveVariableGet(self)
     
     def __str__(self):
         return self.name 
@@ -257,8 +268,8 @@ class BinaryOp:
         self.op = op
         self.right = right
     
-    def resolve(self, interpret):
-        return interpret.resolveBinaryOp(self)
+    def resolve(self, visitor):
+        return visitor.resolveBinaryOp(self)
     
     def __str__(self):
         return f"{self.left} {reverse_token_map[self.op]} {self.right}"
@@ -269,11 +280,21 @@ class Value:
         self.type = type
         self.value = value
     
-    def resolve(self, interpret):
-        return interpret.resolveValue(self)
+    def resolve(self, visitor):
+        return visitor.resolveValue(self)
     
     def __str__(self):
         return str(self.value)
+
+class List:
+    def __init__(self, exprs):
+        self.exprs = exprs
+    
+    def resolve(self, visitor):
+        return visitor.resolveList(self)
+    
+    def __str__(self):
+        return str(self.exprs)
 
 
 # outside of parser class so it can follow the same format as generated functions 
@@ -302,7 +323,9 @@ class Parser:
 
         self.registered_types = {
             "int" : INT,
-            "char" : CHAR
+            "char" : CHAR,
+            # TODO remove
+            "double" : DOUBLE
         }
 
         self.parsers = [
@@ -410,6 +433,17 @@ class Parser:
                 return Value(INT, int(token.value))
             case TokenType.ERR:
                 return Err()
+            case TokenType.SQUARE_BRAC_LEFT:
+                exprs = []
+
+                while True:
+                    exprs.append(self.parsePrec(self.expression_prec))
+                    if not self.tryMatch(TokenType.COMMA):
+                        break
+                
+                self.match(TokenType.SQUARE_BRAC_RIGHT)
+
+                return List(exprs)
             case _:
                 # self.previous()
                 # return self.parsePrec(self.expression_prec)
@@ -462,7 +496,7 @@ class Parser:
             self.index = saved_index
             return self.parsePrec(prec + 1)
         
-        if type(type_) != TokenType.IDENTIFIER:
+        if type(type_) == Token:
             type_ = self.getType(type_.value)
         
         #NOTE this will break if something with greater prec has two IDs in a row
