@@ -1,13 +1,13 @@
 from Tokenizer import TokenType
 from Instruction import *
-from Parser import INT, CHAR, PointerType
+from Parser import INT, CHAR, VOID, PointerType
 from StackManager import StackManager
 
 class Compiler:
     def __init__(self, ast):
         self.ast = ast
 
-        self.current_stack = 0
+        self.stack = StackManager()
 
         self.globals = {}
         self.locals = []
@@ -35,12 +35,12 @@ class Compiler:
             if varname in locals:
                 raise Exception("Variable already bound")
 
-            locals[varname] = self.current_stack + rel_stack_pos
+            locals[varname] = self.stack.getCurrent() + rel_stack_pos
         else:
             if varname in self.globals:
                 raise Exception("Variable already bound")
 
-            self.globals[varname] = self.current_stack + rel_stack_pos
+            self.globals[varname] = self.stack.getCurrent() + rel_stack_pos
 
     def get(self, var):
         for locals in reversed(self.locals):
@@ -71,21 +71,27 @@ class Compiler:
 
     def pushValue(self, value):
         # TODO take in list/value 
-        self.current_stack += 4
+        self.stack.push(VOID)
 
         return self.pushBinaryInstr(value)
 
 
     def pushReg(self, reg):
-        self.current_stack += 4
+        self.stack.push(VOID)
 
         return Instructions(
             Sw("sp", reg, 0),
             Addi("sp", "sp", 4)
         )
     
+    def pushRegNoStackPleaseRemove(self, reg):
+        return Instructions(
+            Sw("sp", reg, 0),
+            Addi("sp", "sp", 4)
+        )
+    
     def pop(self, reg):
-        self.current_stack -= 4
+        self.stack.pop()
 
         return Instructions(
                 Addi("sp", "sp", -4),
@@ -200,14 +206,14 @@ class Compiler:
         instr.commentFirst(f"#{varset.name} = {varset.expr}")
         instr += self.pop("t0")
 
-        stack_diff = self.get(varset.name) - self.current_stack
+        stack_diff = self.get(varset.name) - self.stack.getCurrent()
         instr += Sw("sp", "t0", stack_diff)
         instr.commentLast(f"END varset")
         return instr
     
     def resolveVariableGet(self, varget):
         stack_target = self.get(varget.name)
-        stack_difference = stack_target - self.current_stack
+        stack_difference = stack_target - self.stack.getCurrent()
 
         instr = Instructions(Lw("t0", "sp", stack_difference))
         instr.commentFirst(f"varget {varget.name}")
@@ -218,10 +224,8 @@ class Compiler:
     
     def resolveExprStatement(self, exprs):
         instr = exprs.s.resolve(self)
-        instr += Addi("sp", "sp", -4)
-        self.current_stack -= 4
-        # TODO if this is a list it causes issues 
-        # fix is to start tracking stack types
+        amount = self.stack.pop()
+        instr += Addi("sp", "sp", -amount)
         return instr
     
     def resolveDebug(self, debug):
@@ -235,15 +239,15 @@ class Compiler:
 
         self.beginScope()
 
-        stack_start = self.current_stack
+        stack_start = self.stack.getCurrent()
 
         instr = block.statements.resolve(self)
         instr.commentFirst("#block start")
         
-        stack_diff = stack_start - self.current_stack
+        stack_diff = stack_start - self.stack.getCurrent()
         instr += Addi("sp", "sp", stack_diff)
         instr.commentLast("#END block")
-        self.current_stack = stack_start
+        self.stack.popUntil(stack_start)
 
         self.endScope()
         return instr
@@ -320,7 +324,7 @@ class Compiler:
         instr.commentLast("# ra pushed to stack")
 
         # adds return value to stack
-        self.function_stack = self.current_stack
+        self.function_stack = self.stack.getCurrent()
         instr += fn.block.resolve(self).commentFirst("# resolve function block")
 
         self.linkFutureBeq(instr, 4 * len(instr))
@@ -337,7 +341,9 @@ class Compiler:
 
         for i in range(b):
             instr += Lw("t0", "a0", -4 * b + i * 4)
-            instr += self.pushReg("t0")
+            instr += self.pushRegNoStackPleaseRemove("t0")
+        
+        self.stack.push(fn.type)
 
         instr += Jalr("x0", "ra", 0)
         self.endScope()
@@ -352,8 +358,9 @@ class Compiler:
             instr += arg.resolve(self)
 
         instr += Jalr("ra", "x0", self.functions[call.name])
-        self.current_stack += 4
-        self.current_stack -= 4 * len(call.args)
+        # TODO get return type 
+        self.stack.push(INT)
+        self.stack.popItems(len(call.args))
         instr.commentFirst(f"#CALL {call.name}")
         instr.commentLast("#END call")
         return instr
@@ -361,7 +368,7 @@ class Compiler:
     def resolveReturn(self, ret):
         instr = ret.expr.resolve(self)
         instr += Addi("a0", "sp", 0)
-        instr += Addi("sp", "sp", self.function_stack - self.current_stack)
+        instr += Addi("sp", "sp", self.function_stack - self.stack.getCurrent())
         instr += FutureBeq("x0", "x0")
         instr.commentFirst("# return start")
         instr.commentLast("# return jump")
