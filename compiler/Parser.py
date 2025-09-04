@@ -61,8 +61,6 @@ class PointerType:
 
 INT = BaseType("int", 1)
 CHAR = BaseType("char", 1)
-# TODO remove
-DOUBLE = BaseType("double", 2)
 VOID = BaseType("void", 1)
 
 
@@ -273,6 +271,13 @@ class Value:
     def __str__(self):
         return str(self.value)
 
+class Struct:
+    def __init__(self, exprs):
+        self.exprs = exprs
+    
+    def resolve(self, visitor):
+        return visitor.resolveStruct(self)
+
 class List:
     def __init__(self, exprs):
         self.exprs = exprs
@@ -311,53 +316,55 @@ class Parser:
         self.registered_types = {
             "int" : INT,
             "char" : CHAR,
-            # TODO remove
-            "double" : DOUBLE
         }
 
         self.parsers = [
             self.parseStatements,                               #0
-            self.parseFunctionDefinition,                       #1
-            self.parseWhile,                                    #2
-            self.parseFor,                                      #3
-            self.parseIf,                                       #4
-            self.parseBlock,                                    #5
-            self.parseStatement,                                #6
-            self.parseErr,                                      #7
-            self.parseVarDecl,                                  #8
-            self.parseVarSet,                                   #9
-            self.parseReturn,                                   #10
-            self.parseContinue,                                 #11
-            self.parseBreak,                                    #12
-            self.parseExprStatement,                            #13
-            self.parseDebug,                                    #14
-            self.defineBinaryOpFunction(TokenType.OR),          #15
-            self.defineBinaryOpFunction(TokenType.AND),         #16
-            self.defineBinaryOpFunction(TokenType.COMP_EQ),     #17
-            self.defineBinaryOpFunction(TokenType.COMP_NEQ),    #18
-            self.defineBinaryOpFunction(TokenType.COMP_GT),     #19
-            self.defineBinaryOpFunction(TokenType.COMP_LT),     #20
-            self.defineBinaryOpFunction(TokenType.COMP_GT_EQ),  #21
-            self.defineBinaryOpFunction(TokenType.COMP_LT_EQ),  #22
-            self.defineBinaryOpFunction(TokenType.OP_PLUS),     #23
-            self.defineBinaryOpFunction(TokenType.OP_MINUS),    #24
-            self.defineBinaryOpFunction(TokenType.OP_MUL),      #25
-            self.defineBinaryOpFunction(TokenType.OP_DIV),      #26
-            self.parseFunctionCall,                             #27
-            self.parseParns,                                    #28
-            self.parseValue                                     #29
+            self.parseDefStruct,                                #1
+            self.parseFunctionDefinition,                       #2
+            self.parseWhile,                                    #3
+            self.parseFor,                                      #4
+            self.parseIf,                                       #5
+            self.parseBlock,                                    #6
+            self.parseStatement,                                #7
+            self.parseErr,                                      #8
+            self.parseVarDecl,                                  #9
+            self.parseVarSet,                                   #10
+            self.parseReturn,                                   #11
+            self.parseContinue,                                 #12
+            self.parseBreak,                                    #13
+            self.parseExprStatement,                            #14
+            self.parseDebug,                                    #15
+            self.defineBinaryOpFunction(TokenType.OR),          #16
+            self.defineBinaryOpFunction(TokenType.AND),         #17
+            self.defineBinaryOpFunction(TokenType.COMP_EQ),     #18
+            self.defineBinaryOpFunction(TokenType.COMP_NEQ),    #19
+            self.defineBinaryOpFunction(TokenType.COMP_GT),     #20
+            self.defineBinaryOpFunction(TokenType.COMP_LT),     #21
+            self.defineBinaryOpFunction(TokenType.COMP_GT_EQ),  #22
+            self.defineBinaryOpFunction(TokenType.COMP_LT_EQ),  #23
+            self.defineBinaryOpFunction(TokenType.OP_PLUS),     #24
+            self.defineBinaryOpFunction(TokenType.OP_MINUS),    #25
+            self.defineBinaryOpFunction(TokenType.OP_MUL),      #26
+            self.defineBinaryOpFunction(TokenType.OP_DIV),      #27
+            self.parseFunctionCall,                             #28
+            self.parseParns,                                    #29
+            self.parseValue                                     #30
         ]
 
-        self.expression_prec = 14
-        self.block_prec = 5
-        self.function_prec = 1
-        self.var_decl_prec = 7
-        self.const_prec = 28
+        self.expression_prec = 16
+        self.block_prec = 6
+        self.function_prec = 2
+        self.var_decl_prec = 9
+        self.const_prec = 30
 
         self.ast = self.parsePrec(0)
     
     def getType(self, name):
         return self.registered_types[name]
+    
+    def getTypes(self):
+        return self.registered_types
     
     def match(self, t):
         token = self.tokens[self.index]
@@ -411,6 +418,29 @@ class Parser:
         self.match(TokenType.SEMI)
         return v
     
+    def parseDefStruct(self, prec):
+        if not self.tryMatch(TokenType.STRUCT):
+            return self.parsePrec(prec + 1)
+        
+        name = self.match(TokenType.IDENTIFIER).value
+        self.match(TokenType.BRAC_LEFT)
+
+        properties = []
+        property_types = []
+
+        while (type_ := self.tryParseType()):
+            property_types.append(type_)
+            properties.append(self.match(TokenType.IDENTIFIER).value)
+            self.match(TokenType.SEMI)
+        
+        type_ = StructType(name, properties, property_types)
+        self.registered_types[name] = type_
+
+        self.match(TokenType.BRAC_RIGHT)
+        self.match(TokenType.SEMI)
+
+        return None
+
     def parseValue(self, prec):
         token = self.next()
 
@@ -436,6 +466,17 @@ class Parser:
                 self.match(TokenType.SQUARE_BRAC_RIGHT)
 
                 return List(exprs)
+            case TokenType.BRAC_LEFT:
+                parms = []
+                while not self.tryMatch(TokenType.BRAC_RIGHT):
+                    parms.append(self.parsePrec(self.expression_prec))
+
+                    if not self.tryMatch(TokenType.COMMA):
+                        break
+                
+                self.match(TokenType.BRAC_RIGHT)
+                return Struct(parms)
+
             case _:
                 # self.previous()
                 # return self.parsePrec(self.expression_prec)
@@ -456,7 +497,9 @@ class Parser:
     def parseStatements(self, prec):
         statements = []
         while self.isNext():
-            statements.append(self.parsePrec(prec + 1))
+            n = self.parsePrec(prec + 1)
+            if n:
+                statements.append(n)
 
             if not self.isNext() or self.peek().kind == TokenType.BRAC_RIGHT:
                 break
@@ -473,23 +516,13 @@ class Parser:
     
     def parseVarDecl(self, prec):
         saved_index = self.index
-        
-        if not (type_ := self.tryMatch(TokenType.IDENTIFIER)):
+
+        if not (type_ := self.tryParseType()):
             return self.parsePrec(prec + 1)
         
-
-        if self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
-            amount = self.parsePrec(self.const_prec).value
-            type_ = self.getType(type_.value)
-            type_ = PointerType(type_, amount)
-            self.match(TokenType.SQUARE_BRAC_RIGHT)
-
         if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
             self.index = saved_index
             return self.parsePrec(prec + 1)
-        
-        if type(type_) == Token:
-            type_ = self.getType(type_.value)
         
         #NOTE this will break if something with greater prec has two IDs in a row
         if not self.tryMatch(TokenType.DECL_EQ):
@@ -525,7 +558,7 @@ class Parser:
 
 
     def parseFunctionDefinition(self, prec):
-            if not (type_ := self.tryMatch(TokenType.IDENTIFIER)):
+            if not (type_ := self.tryParseType()):
                 return self.parsePrec(prec + 1)
             
             if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
@@ -542,17 +575,17 @@ class Parser:
             args = []
             arg_types = []
 
-            while (arg_type := self.tryMatch(TokenType.IDENTIFIER)):
-                arg = self.match(TokenType.IDENTIFIER)
-                args.append(arg.value)
-                arg_types.append(self.getType(arg_type.value))
+            while (arg_type := self.tryParseType()):
+                arg_types.append(arg_type)
+
+                args.append(self.match(TokenType.IDENTIFIER).value)
 
                 if not self.tryMatch(TokenType.COMMA):
                     break
             
             self.match(TokenType.PAR_RIGHT)
             block = self.parsePrec(self.block_prec)
-            return FunctionDecl(identifier, args, block, self.getType(type_.value), arg_types)
+            return FunctionDecl(identifier, args, block, type_, arg_types)
     
 
     def parseFunctionCall(self, prec):
@@ -654,11 +687,27 @@ class Parser:
         self.match(TokenType.SEMI)
 
         return Continue()
+    
+    def tryParseType(self):
+        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            return False
+        
+        if identifier.value not in self.registered_types:
+            self.previous()
+            return False
+
+        type_ = self.getType(identifier.value)
+
+        while self.tryMatch(TokenType.OP_MUL):
+            type_ = PointerType(type_)
+        
+        if self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
+            amount = self.parseValue().value
+            type_ = PointerType(type_, amount)
+        
+        return type_
 
 
 def parse(tokens: list[Token]):
     parser = Parser(tokens)
-    return parser.ast
-
-
-
+    return (parser.ast, parser.getTypes())

@@ -51,6 +51,8 @@ class TokenType(Enum):
     DOT = 38
     ERR = 39
 
+    STRUCT = 40
+
 class Token:
     def __init__(self, kind: TokenType, value=None):
         self.value = value
@@ -97,7 +99,8 @@ token_map = {
     "continue" : TokenType.CONTINUE,
 
     "class" : TokenType.CLASS,
-    "." : TokenType.DOT
+    "." : TokenType.DOT,
+    "struct" : TokenType.STRUCT
 }
 
 reverse_token_map = dict(zip(token_map.values(), token_map.keys()))

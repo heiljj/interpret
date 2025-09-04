@@ -77,6 +77,13 @@ def test_expr13():
     buildtest("DEBUG (true or false) and true;", True)
     buildtest("DEBUG (false or false) and true;", False)
 
+def test_var1():
+    buildtest("int a = 10; int b = 5; DEBUG a;", 10)
+    buildtest("int a = 10; int b = 5; DEBUG b;", 5)
+    buildtest("int a = 10; int b = 5; a = b; DEBUG b;", 5)
+    buildtest("int a = 10; int b = 5; b = a; DEBUG b;", 10)
+    buildtest("int a; a = 10; DEBUG a;", 10)
+
 def test_if1():
     buildtest("if (1) {DEBUG 1;}", 1)
     buildtest("if (0) {ERR;}", None)
@@ -216,10 +223,10 @@ def test_shadow2():
 
 def buildtest(code , value):
     tokens = tokenize(code)
-    ast = parse(tokens)
+    ast, types = parse(tokens)
     typecheck(ast)
 
-    instr = comp(ast)
+    instr = comp(ast, types)
 
     emu = Emu(instr)
     emu.run()

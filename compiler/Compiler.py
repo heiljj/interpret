@@ -4,8 +4,9 @@ from Parser import INT, CHAR, VOID, PointerType
 from StackManager import StackManager
 
 class Compiler:
-    def __init__(self, ast):
+    def __init__(self, ast, types):
         self.ast = ast
+        self.types = types
 
         self.stack = StackManager()
 
@@ -13,7 +14,8 @@ class Compiler:
         self.locals = []
 
         self.function_instr = Instructions()
-        self.functions = {}
+        self.function_addrs = {}
+        self.function_returns = {}
     
     def run(self):
         instr = self.ast.resolve(self) + Stop()
@@ -106,6 +108,13 @@ class Compiler:
             return self.pushValue(ord(value.value))
 
         raise NotImplementedError
+    
+    def resolveStruct(self, struct):
+        instr = Instructions()
+        for expr in struct.exprs:
+            instr += expr.resolve(self)
+        
+        return instr
     
     def resolveList(self, l):
         instr = Instructions()
@@ -312,7 +321,8 @@ class Compiler:
         return decl + cond + block
     
     def resolveFunctionDecl(self, fn):
-        self.functions[fn.name] = len(self.function_instr) * 4 + 4
+        self.function_addrs[fn.name] = len(self.function_instr) * 4 + 4
+        self.function_returns[fn.name] = fn.type
 
         self.beginScope()
 
@@ -357,10 +367,9 @@ class Compiler:
         for arg in call.args:
             instr += arg.resolve(self)
 
-        instr += Jalr("ra", "x0", self.functions[call.name])
-        # TODO get return type 
-        self.stack.push(INT)
+        instr += Jalr("ra", "x0", self.function_addrs[call.name])
         self.stack.popItems(len(call.args))
+        self.stack.push(self.function_returns[call.name])
         instr.commentFirst(f"#CALL {call.name}")
         instr.commentLast("#END call")
         return instr
@@ -381,26 +390,8 @@ class Compiler:
                 instructions[i].comment = instr.comment
 
 
-
-
-
-        
-
-        
-
-
-# -pass args through stack, ra 
-# -bind stack positions to variables
-# -put ra on stack
-# execute stuff
-# put return in arg
-# pop args from stack, return to ra
-# add returned value to stack
-
-
-
-def comp(ast):
-    c = Compiler(ast)
+def comp(ast, types):
+    c = Compiler(ast, types)
     instr = c.run().instr
     return instr
             

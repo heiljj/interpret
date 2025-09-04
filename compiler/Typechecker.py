@@ -1,4 +1,4 @@
-from Parser import INT, CHAR, DOUBLE, VOID, BaseType, StructType, PointerType
+from Parser import INT, CHAR, VOID, BaseType, StructType, PointerType
 
 from Instruction import *
 
