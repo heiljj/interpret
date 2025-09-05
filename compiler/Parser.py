@@ -43,7 +43,7 @@ class StructType:
         return self.property_types[self.properties.index(name)]
     
     def getPropertyOffset(self, name):
-        return self.property_byte_offsets[name]
+        return self.property_word_offsets[name]
     
     def getPropertySize(self, name):
         return self.property_types[self.properties.index(name)].getWords()
@@ -283,18 +283,20 @@ class VariableGet:
         return self.name 
 
 class StructLookUp:
-    def __init__(self, identifier, next_=None):
+    def __init__(self, identifier, next_=None, type_=None):
         self.identifier = identifier
         self.next = next_
+        self.type = type_
     
     def resolve(self, visitor):
         raise Exception()
 
 # might be better to do this in a loop since the type is needed?
 class ListIndex:
-    def __init__(self, expr, next_=None):
+    def __init__(self, expr, next_=None, type_=None):
         self.expr = expr
         self.next = next_
+        self.type = type_
 
     def resolve(self, visitor):
         raise Exception()

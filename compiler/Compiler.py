@@ -1,6 +1,6 @@
 from Tokenizer import TokenType
 from Instruction import *
-from Parser import INT, CHAR, VOID, PointerType, StructType
+from Parser import INT, CHAR, VOID, PointerType, StructType, StructLookUp, ListIndex
 from StackManager import StackManager
 
 class Compiler:
@@ -231,13 +231,32 @@ class Compiler:
         
         return instr
 
-    
     def resolveVariableGet(self, varget):
         type_, pos = self.get(varget.name)
         instr = Instructions()
 
         if varget.lookup:
-            raise Exception()
+            instr += self.pushValue(pos - self.stack.getCurrent())
+
+            next_ = varget.lookup
+
+            while next_:
+                if type(next_) == StructLookUp:
+                    offset = 4 * type_.getPropertyOffset(next_.identifier)
+                    instr += self.pop("t0")
+                    instr += Addi("t0", "t0", offset)
+                    instr += self.pushReg("t0")
+
+                    type_ = next_.type
+                    next_ = next_.next
+
+                
+                elif type(next_) == ListIndex:
+                    pass
+
+                else:
+                    raise Exception
+
         else:
             instr += self.pushValue(pos - self.stack.getCurrent())
 
@@ -255,9 +274,6 @@ class Compiler:
         instr.commentFirst(f"varget {varget.name}")
         instr.commentLast(f"END varget")
         return instr
-
-
-
     
     def resolveExprStatement(self, exprs):
         instr = exprs.s.resolve(self)

@@ -166,6 +166,7 @@ class Typechecker:
             else:
                 raise Exception()
             
+            next_.type = last_type
             next_ = next_.next
         
         varget.type = last_type
