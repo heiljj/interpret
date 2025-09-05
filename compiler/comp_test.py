@@ -211,6 +211,27 @@ def test_struct2():
         DEBUG value2.a2;
     """, [1, ord("a"), 2, 1, ord("a"), ord("b")])
 
+    buildtest("""
+        struct s {int a1; char a2;};
+        struct s2 {s a1; char a2;};
+        s value = {1, 'a'};
+        s2 value2 = {value, 'b'};
+        value2.a2 = 'c';
+        DEBUG value2.a2;
+    """, ord("c"))
+
+    buildtest("""
+        struct s {int a1; char a2;};
+        struct s2 {s a1; char a2;};
+        s value = {1, 'a'};
+        s2 value2 = {value, 'b'};
+        value2.a1 = {2, 'c'};
+        DEBUG value2.a1.a1;
+        DEBUG value2.a1.a2;
+        DEBUG value.a1;
+        DEBUG value.a2;
+    """, [2, ord("c"), 1, ord("a")])
+
 def test_typecheck1():
     buildtest_expect('DEBUG 1 + "1";', TypeError)
     buildtest_expect('char f() {return 1;}', TypeError)

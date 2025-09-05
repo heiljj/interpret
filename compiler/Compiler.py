@@ -224,11 +224,24 @@ class Compiler:
         byte_amount = self.stack.pop()
         offset = stack_diff - byte_amount
 
-        # if varset.lookup:
-        if False:
-            raise Exception()
-        else:
-            instr += self.pushValue(byte_amount - stack_diff)
+        instr += self.pushValue(byte_amount - stack_diff)
+        if varset.lookup:
+            next_ = varset.lookup
+            if type(next_) == StructLookUp:
+                offset = 4 * type_.getPropertyOffset(next_.identifier)
+                instr += self.pop("t0")
+                instr += Addi("t0", "t0", offset)
+                instr += self.pushReg("t0")
+
+                type_ = next_.type
+                next_ = next_.next
+
+            
+            elif type(next_) == ListIndex:
+                pass
+
+            else:
+                raise Exception
 
         instr += self.pop("t1")
 
@@ -244,8 +257,9 @@ class Compiler:
         type_, pos = self.get(varget.name)
         instr = Instructions()
 
+        instr += self.pushValue(pos - self.stack.getCurrent())
+
         if varget.lookup:
-            instr += self.pushValue(pos - self.stack.getCurrent())
 
             next_ = varget.lookup
 
@@ -265,9 +279,6 @@ class Compiler:
 
                 else:
                     raise Exception
-
-        else:
-            instr += self.pushValue(pos - self.stack.getCurrent())
 
         byte_amount = type_.getWords() * 4
         instr += self.pop("t1")
