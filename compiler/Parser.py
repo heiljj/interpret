@@ -172,18 +172,6 @@ class While:
     def __str__(self):
         return f"while ({self.cond}) {self.expr}"
 
-class For:
-    def __init__(self, decl, cond, assign, block):
-        self.decl = decl
-        self.cond = cond
-        self.assign = assign
-        self.block = block
-    
-    def resolve(self, visitor):
-        return visitor.resolveFor(self)
-    
-    def __str__(self):
-        return f"for ({self.decl}; {self.cond}; {self.assign}) {self.block}"
 
 class ExprStatement:
     def __init__(self, s):
@@ -283,9 +271,10 @@ class VariableGet:
     # put sp offset on stack
     # resolve next
     # add
-    def __init__(self, name, lookup=None):
+    def __init__(self, name, lookup=None, type_=None):
         self.name = name
         self.lookup = lookup
+        self.type = type_
     
     def resolve(self, visitor):
         return visitor.resolveVariableGet(self)
@@ -755,7 +744,8 @@ class Parser:
 
         block = self.parsePrec(self.block_prec)
 
-        return For(decl, cond, incr, block)
+        while_block = While(cond, Block(Statements([block, incr])))
+        return Block(Statements([decl, while_block]))
 
     def parseParns(self, prec):
         if not self.tryMatch(TokenType.PAR_LEFT):

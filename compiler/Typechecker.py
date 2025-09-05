@@ -168,6 +168,7 @@ class Typechecker:
             
             next_ = next_.next
         
+        varget.type = last_type
         return last_type
 
     def resolveExprStatement(self, exprs):
@@ -200,18 +201,6 @@ class Typechecker:
             raise Exception(f"Typecheck error: while cond was type {cond}")
         
         wh.expr.resolve(self)
-    
-    def resolveFor(self, for_):
-        self.beginScope()
-        for_.decl.resolve(self)
-        cond = for_.cond.resolve(self)
-
-        if cond != INT:
-            raise Exception(f"Typecheck error: for cond was type {cond}")
-        
-        for_.assign.resolve(self)
-        for_.block.resolve(self)
-        self.endScope()
     
     def resolveFunctionDecl(self, fn):
         self.decl(fn.name)

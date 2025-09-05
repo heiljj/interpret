@@ -84,6 +84,12 @@ def test_var1():
     buildtest("int a = 10; int b = 5; b = a; DEBUG b;", 10)
     buildtest("int a; a = 10; DEBUG a;", 10)
 
+def test_var2():
+    buildtest("int a = 10; int b = 5; a = 6 + 2; DEBUG a;", 8)
+    buildtest("int a = 10; int b = 5; b = 6 + 2; DEBUG b;", 8)
+    buildtest("int a = 10; int b = 5; b = 6 + 2; DEBUG a;", 10)
+    buildtest("int a = 10; int b = 5; a = 6 + 2; DEBUG b;", 5)
+
 def test_if1():
     buildtest("if (1) {DEBUG 1;}", 1)
     buildtest("if (0) {ERR;}", None)
@@ -109,6 +115,7 @@ def test_for1():
     buildtest("for(int j = 0; j != 0; j = j + 1) {ERR;}", None)
     buildtest("for (int i = 0; i < 1; i = i + 1) {}", None)
     buildtest("int i = 0; for (int j = 0; j <= 10; j = j + 1) {i = j;} DEBUG i;", 10)
+    buildtest("int i = 2; for (int j = 0; j < 4; j = j + 1) {i = i * 2;} DEBUG i;", 32)
 
 def test_fn1():
     buildtest("int f() {DEBUG 1;} f();", 1)

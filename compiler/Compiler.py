@@ -234,20 +234,26 @@ class Compiler:
     
     def resolveVariableGet(self, varget):
         type_, pos = self.get(varget.name)
-        stack_diff = self.stack.getCurrent() - pos
-        byte_amount = type_.getWords() * 4
-
         instr = Instructions()
 
+        if varget.lookup:
+            raise Exception()
+        else:
+            instr += self.pushValue(pos - self.stack.getCurrent())
+
+        byte_amount = type_.getWords() * 4
+        instr += self.pop("t1")
+
+
         for _ in range(byte_amount // 4):
-            instr += Lw("t0", "sp", -stack_diff)
+            instr += Add("t0", "sp", "t1")
+            instr += Lw("t0", "t0", 0)
             instr += Sw("sp", "t0", 0)
             instr += Addi("sp", "sp", 4)
         
         self.stack.push(type_)
         instr.commentFirst(f"varget {varget.name}")
         instr.commentLast(f"END varget")
-
         return instr
 
 
@@ -322,24 +328,6 @@ class Compiler:
         cond += (Beq("t0", "x0", 4 * len(block) + 4))
         return cond + block
     
-    def resolveFor(self, for_):
-        self.beginScope()
-        decl = for_.decl.resolve(self)
-        decl.commentFirst("#FOR")
-        decl.commentLast("#for decl end")
-
-        cond = for_.cond.resolve(self)
-        cond.commentFirst("#COND start")
-        cond += self.pop("t0")
-        cond.commentLast("#COND end")
-
-        block = for_.block.resolve(self)
-        block += for_.assign.resolve(self)
-        block += Beq("x0", "x0", -4 * len(cond) - 4 * len(block))
-        block.commentFirst("body start")
-
-        cond += Beq("t0", "x0", 4 * len(block) + 4)
-        return decl + cond + block
     def resolveFunctionDecl(self, fn):
         self.function_addrs[fn.name] = len(self.function_instr) * 4 + 4
         self.function_returns[fn.name] = fn.type
