@@ -119,8 +119,8 @@ def test_for1():
     buildtest("for (int i = 0; i < 5; i = i + 1) {DEBUG i;}", [0, 1, 2, 3, 4])
 
 def test_fn1():
-    buildtest("int f() {DEBUG 1;} f();", 1)
-    buildtest("int f() {DEBUG 1;}", None)
+    buildtest("int f() {DEBUG 1; return 0;} f();", 1)
+    buildtest("int f() {DEBUG 1; return 0;}", None)
     buildtest("int f() {return 1;} DEBUG f();", 1)
     buildtest("int f() {return 1;} f(); f(); f(); DEBUG f();", 1)
     buildtest("int add(int a, int b) {return a + b;} DEBUG add(1, 5);", 6)
@@ -190,11 +190,40 @@ def test_fn5():
         DEBUG mul(add(1, 2), add(5, 5));
     """, 30)
 
+def test_struct1():
+    buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; DEBUG v.a1; DEBUG v.a2;', [1, ord("a")])
+    buildtest('struct s {int a1; char a2;}; s v; v = {1, "a"}; DEBUG v.a1; DEBUG v.a2;', [1, ord("a")])
+    buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; s v2 = {2, "b"}; DEBUG v.a1; DEBUG v.a2; DEBUG v2.a1; DEBUG v2.a2;', [1, ord("a"), 2, ord("b")])
+    # buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; s.a1 = 1')
+
+
 def test_typecheck1():
     buildtest_expect('DEBUG 1 + "1";', TypeError)
     buildtest_expect('char f() {return 1;}', TypeError)
     buildtest_expect('int f(char a) {return 1;} f(1);', TypeError)
     buildtest_expect('char f() {if (1) {return "a";} else {return 1;}}', TypeError)
+
+def test_typecheck2():
+    buildtest('struct s {int a1; char a2;};', None)
+    buildtest('struct s {int a1; char a2;}; struct s2 {s a1; char a2;}; s2 a = {{1, "2"}, "a"};', None)
+    buildtest_expect('struct s {int a1; char a2;}; struct s2 {s a1; char a2;}; s2 a = {{1, "2"}, 1};', TypeError)
+    buildtest('struct s {int a1; char a2;}; s a = {1, "a"}; int b = a.a1;', None)
+    buildtest_expect('struct s {int a1; char a2;}; s a = {1, "a"}; int b = a.a2;', TypeError)
+    buildtest('struct s {int a1; char a2;}; s a = {1, "a"}; char b = a.a2;', None)
+    buildtest_expect('struct s {int a1; char a2;}; s a = {1, "a"}; char b = a.a1;', TypeError)
+
+def test_typecheck3():
+    buildtest_expect("int f(){}", TypeError)
+    buildtest('struct s {int a1; char a2;}; s f() {return {1, "a"};}', None)
+    buildtest_expect('struct s {int a1; char a2;}; s f() {return {1, 2};}', TypeError)
+    buildtest('struct s {int a1; char a2;}; int f(s arg) {return arg.a1;}', None)
+    buildtest_expect('struct s {int a1; char a2;}; int f(s arg) {return arg.a2;}', TypeError)
+
+    buildtest('struct s {int a1; char a2;}; struct s2 {s a1; char a2;}; s2 a = {{1, "2"}, "a"}; s a2 = a.a1;', None)
+    buildtest_expect('struct s {int a1; char a2;}; struct s2 {s a1; char a2;}; s2 a = {{1, "2"}, "a"}; s a2 = a.a2;', TypeError)
+
+    buildtest('struct s {int a1; char a2;}; struct s2 {s a1; char a2;}; s2 a = {{1, "2"}, "a"}; int a2 = a.a1.a1;', None)
+    buildtest_expect('struct s {int a1; char a2;}; struct s2 {s a1; char a2;}; s2 a = {{1, "2"}, "a"}; int a2 = a.a1.a2;', TypeError)
 
 
 def test_expr_old5():

@@ -13,6 +13,7 @@ class Typechecker:
         self.ast = ast
 
         self.expected_return_type = None
+        self.found_return = True
     
     def run(self):
         self.ast.resolve(self)
@@ -208,6 +209,7 @@ class Typechecker:
         self.set(fn.name, fn)
         # works as long as there are not nested functions, which are not supported anyways
         self.setExpectedReturnType(fn.type)
+        self.found_return = False
         self.beginScope()
 
         if len(fn.args) != len(fn.argtypes):
@@ -218,6 +220,9 @@ class Typechecker:
             self.set(fn.args[i], fn.argtypes[i])
 
         fn.block.resolve(self)
+
+        if not self.found_return:
+            raise TypeError("Function with no return")
 
         self.endScope()
         self.set(fn.name, fn)
@@ -236,6 +241,7 @@ class Typechecker:
         return decl.type
     
     def resolveReturn(self, ret):
+        self.found_return = True
         t = ret.expr.resolve(self)
         if self.getExpectedReturnType() != t:
             raise TypeError("wrong return type")
