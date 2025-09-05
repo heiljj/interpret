@@ -23,7 +23,6 @@ class Compiler:
         start = Instructions(Jal("x0", len(self.function_instr) * 4 + 4))
         return start + self.function_instr + instr
     
-    
     def beginScope(self):
         self.locals.append({})
     
@@ -51,43 +50,23 @@ class Compiler:
 
             return locals[var]
 
-        
         if var not in self.globals:
             raise Exception("Variable does not exist")
         
         return self.globals[var]
     
-    
-    def resolveStatements(self, stmts):
-        instr = Instructions()
-        for stmt in stmts.statements:
-            instr += stmt.resolve(self)
-        
-        return instr
-    
-    def pushBinaryInstr(self, binary):
+    def push(self, value):
+        self.stack.push(VOID)
+
         return Instructions(
-            Addi("t0", "x0", binary),
+            Addi("t0", "x0", value),
             Sw("sp", "t0", 0),
             Addi("sp", "sp", 4)
         )
 
-    def pushValue(self, value):
-        # TODO take in list/value 
-        self.stack.push(VOID)
-
-        return self.pushBinaryInstr(value)
-
-
     def pushReg(self, reg):
         self.stack.push(VOID)
 
-        return Instructions(
-            Sw("sp", reg, 0),
-            Addi("sp", "sp", 4)
-        )
-    
-    def pushRegNoStackPleaseRemove(self, reg):
         return Instructions(
             Sw("sp", reg, 0),
             Addi("sp", "sp", 4)
@@ -100,13 +79,55 @@ class Compiler:
                 Addi("sp", "sp", -4),
                 Lw(reg, "sp", 0)
         )
-    
+
+    def linkFutureBeq(self, instructions, addr_rel_start):
+        for i, instr in enumerate(instructions):
+            if type(instr) == FutureBeq:
+                instructions[i] = Beq("x0", "x0", addr_rel_start - i * 4)
+                instructions[i].comment = instr.comment
+
+    def walkIndexes(self, type_, tree):
+        instr = Instructions()
+
+        while tree:
+            if type(tree) == StructLookUp:
+                offset = 4 * type_.getPropertyOffset(tree.identifier)
+                instr += self.pop("t0")
+                instr += Addi("t0", "t0", offset)
+                instr += self.pushReg("t0")
+
+                type_ = tree.type
+                tree = tree.next
+
+            elif type(tree) == ListIndex:
+                instr += tree.expr.resolve(self)
+                instr += self.pop("t0")
+
+                instr += Addi("t1", "x0", type_.getWords())
+                instr += Mul("t0", "t1", "t0")
+
+                instr += self.pop("t1")
+
+                instr += Add("t0", "t0", "t1")
+                instr += self.pushReg("t0")
+
+                type_ = tree.type
+                tree = tree.next
+
+            else:
+                raise Exception()
+        
+        return instr, type_
+
+    def resolveErr(self, err):
+        return Instructions(RaiseError())
+
     def resolveValue(self, value):
         if value.type == INT or type(value) == PointerType:
-            return self.pushValue(Binary(value.value))
+            return self.push(Binary(value.value))
         
         if value.type == CHAR:
-            return self.pushValue(ord(value.value))
+            return self.push(ord(value.value))
 
         raise NotImplementedError
     
@@ -126,9 +147,6 @@ class Compiler:
             instr += expr.resolve(self)
         
         return instr
-    
-    def resolveErr(self, err):
-        return Instructions(RaiseError())
             
     def resolveBinaryOp(self, op):
         instr = op.left.resolve(self)
@@ -143,12 +161,16 @@ class Compiler:
         match op.op:
             case TokenType.OP_PLUS:
                 op_instr = Add("t0", "t0", "t1")
+
             case TokenType.OP_MINUS:
                 op_instr = Sub("t0", "t0", "t1")
+
             case TokenType.OP_MUL:
                 op_instr = Mul("t0", "t0", "t1")
+
             case TokenType.OP_DIV:
                 op_instr = Div("t0", "t0", "t1")
+
             case TokenType.COMP_EQ:
                 op_instr = Instructions(
                             Xor("t0", "t0", "t1"),
@@ -210,10 +232,10 @@ class Compiler:
 
         instr = Instructions()
         for _ in range(vardecl.type.getWords()):
-            instr += self.pushValue(0)
+            instr += self.push(0)
 
         return instr
-
+    
     def resolveVariableSet(self, varset):
         instr = varset.expr.resolve(self)
         instr.commentFirst(f"#{varset.name} = {varset.expr}")
@@ -222,26 +244,11 @@ class Compiler:
         stack_diff = self.stack.getCurrent() - pos
 
         byte_amount = self.stack.pop()
-        offset = stack_diff - byte_amount
 
-        instr += self.pushValue(byte_amount - stack_diff)
+        instr += self.push(byte_amount - stack_diff)
         if varset.lookup:
-            next_ = varset.lookup
-            if type(next_) == StructLookUp:
-                offset = 4 * type_.getPropertyOffset(next_.identifier)
-                instr += self.pop("t0")
-                instr += Addi("t0", "t0", offset)
-                instr += self.pushReg("t0")
-
-                type_ = next_.type
-                next_ = next_.next
-
-            
-            elif type(next_) == ListIndex:
-                pass
-
-            else:
-                raise Exception
+            index_instr, _ = self.walkIndexes(type_, varset.lookup)
+            instr += index_instr
 
         instr += self.pop("t1")
 
@@ -257,28 +264,11 @@ class Compiler:
         type_, pos = self.get(varget.name)
         instr = Instructions()
 
-        instr += self.pushValue(pos - self.stack.getCurrent())
+        instr += self.push(pos - self.stack.getCurrent())
 
         if varget.lookup:
-
-            next_ = varget.lookup
-
-            while next_:
-                if type(next_) == StructLookUp:
-                    offset = 4 * type_.getPropertyOffset(next_.identifier)
-                    instr += self.pop("t0")
-                    instr += Addi("t0", "t0", offset)
-                    instr += self.pushReg("t0")
-
-                    type_ = next_.type
-                    next_ = next_.next
-
-                
-                elif type(next_) == ListIndex:
-                    pass
-
-                else:
-                    raise Exception
+            index_instr, type_ = self.walkIndexes(type_, varget.lookup)
+            instr += index_instr
 
         byte_amount = type_.getWords() * 4
         instr += self.pop("t1")
@@ -294,16 +284,16 @@ class Compiler:
         instr.commentFirst(f"varget {varget.name}")
         instr.commentLast(f"END varget")
         return instr
+
+    def resolveDebug(self, debug):
+        instr = debug.expr.resolve(self)
+        instr += Debug()
+        return instr
     
     def resolveExprStatement(self, exprs):
         instr = exprs.s.resolve(self)
         amount = self.stack.pop()
         instr += Addi("sp", "sp", -amount)
-        return instr
-    
-    def resolveDebug(self, debug):
-        instr = debug.expr.resolve(self)
-        instr += Debug()
         return instr
     
     def resolveBlock(self, block):
@@ -371,7 +361,7 @@ class Compiler:
         self.beginScope()
 
         for i, arg in enumerate(fn.args):
-            self.bindPosition(arg, fn.argtypes[i], -4 * (len(fn.args) - i))
+            self.bindPosition(arg, fn.argtypes[i], -4 * fn.argtypes[i].getWords() * (len(fn.args) - i))
         
         instr = self.pushReg("ra")
         instr.commentFirst(f"# function {fn.name}")
@@ -383,8 +373,6 @@ class Compiler:
 
         self.linkFutureBeq(instr, 4 * len(instr))
 
-        # TODO copy return value to the bottom of the stack instead of using a0
-
         instr.commentLast("# end function block")
         instr += self.pop("ra").commentFirst("# start of function exit prec")
         instr += Addi("sp", "sp", -4 * len(fn.args))
@@ -395,7 +383,9 @@ class Compiler:
 
         for i in range(b):
             instr += Lw("t0", "a0", -4 * b + i * 4)
-            instr += self.pushRegNoStackPleaseRemove("t0")
+
+            instr += Sw("sp", "t0", 0)
+            instr += Addi("sp", "sp", 4)
         
         self.stack.push(fn.type)
 
@@ -427,12 +417,12 @@ class Compiler:
         instr.commentLast("# return jump")
         return instr
     
-    def linkFutureBeq(self, instructions, addr_rel_start):
-        for i, instr in enumerate(instructions):
-            if type(instr) == FutureBeq:
-                instructions[i] = Beq("x0", "x0", addr_rel_start - i * 4)
-                instructions[i].comment = instr.comment
-
+    def resolveStatements(self, stmts):
+        instr = Instructions()
+        for stmt in stmts.statements:
+            instr += stmt.resolve(self)
+        
+        return instr
 
 def comp(ast, types):
     c = Compiler(ast, types)
