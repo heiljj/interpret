@@ -29,7 +29,7 @@ class Emu:
         self.mem = [Binary(ZERO) for _ in range(1000)]
 
         self.debug = debug
-        self.debug_info = None
+        self.debug_info = [] 
 
         self.stop = False
 
@@ -166,7 +166,7 @@ class Emu:
         self.mem[index] = self.getReg(sw.r2)
     
     def resolveDebug(self, debug):
-        self.debug_info = int(self.mem[(int(self.getReg("sp")) - 4) // 4])
+        self.debug_info.append(int(self.mem[(int(self.getReg("sp")) - 4) // 4]))
 
     
     def resolveJal(self, jal):

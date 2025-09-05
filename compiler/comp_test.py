@@ -116,6 +116,7 @@ def test_for1():
     buildtest("for (int i = 0; i < 1; i = i + 1) {}", None)
     buildtest("int i = 0; for (int j = 0; j <= 10; j = j + 1) {i = j;} DEBUG i;", 10)
     buildtest("int i = 2; for (int j = 0; j < 4; j = j + 1) {i = i * 2;} DEBUG i;", 32)
+    buildtest("for (int i = 0; i < 5; i = i + 1) {DEBUG i;}", [0, 1, 2, 3, 4])
 
 def test_fn1():
     buildtest("int f() {DEBUG 1;} f();", 1)
@@ -229,6 +230,12 @@ def test_shadow2():
 
 
 def buildtest(code , value):
+    if value is None:
+        value = []
+
+    if type(value) != list:
+        value = [value]
+
     tokens = tokenize(code)
     ast, types = parse(tokens)
     typecheck(ast)
