@@ -224,10 +224,19 @@ class Compiler:
         byte_amount = self.stack.pop()
         offset = stack_diff - byte_amount
 
+        # if varset.lookup:
+        if False:
+            raise Exception()
+        else:
+            instr += self.pushValue(byte_amount - stack_diff)
+
+        instr += self.pop("t1")
+
         for _ in range(byte_amount // 4):
             instr += Addi("sp", "sp", -4)
             instr += Lw("t0", "sp", 0)
-            instr += Sw("sp", "t0", -offset)
+            instr += Add("t2", "t1", "sp")
+            instr += Sw("t2", "t0", 0)
         
         return instr
 

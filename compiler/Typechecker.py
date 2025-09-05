@@ -136,8 +136,39 @@ class Typechecker:
         expected_type = self.get(varset.name)
         actual = varset.expr.resolve(self)
 
-        if not expected_type.equiv(actual):
-            raise TypeError(f"variable {varset.name} of type {varset.type} assigned {varset.expr}")
+        if not varset.lookup:
+            if not expected_type.equiv(actual):
+                raise TypeError(f"variable {varset.name} of type {expected_type} assigned {varset.expr}")
+
+            return
+        
+        last_type = expected_type
+        next_ = varset.lookup
+
+        while next_:
+            if type(next_) == StructLookUp:
+                if next_.identifier not in last_type.properties:
+                    raise Exception(f"Property {next_.identifier} not a member of struct {last_type}")
+                
+                last_type = last_type.getPropertyType(next_.identifier)
+            
+            elif type(next_) == ListIndex:
+                if type(last_type) != PointerType:
+                    raise Exception("Index on non pointer")
+                
+                if next_.expr.resolve(self) != INT:
+                    raise Exception("Non int index")
+                
+                last_type = last_type.type
+
+            else:
+                raise Exception()
+            
+            next_.type = last_type
+            next_ = next_.next
+        
+        if not last_type.equiv(actual):
+            raise Exception(f"Property {next_.identifier} not a member of struct {last_type}")
     
     def resolveVariableGet(self, varget):
         var_type = self.get(varget.name)

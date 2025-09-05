@@ -156,15 +156,16 @@ class Tokenizer:
         
         self.tokens.append(Token(TokenType.NUM, float(value)))
     
-    def parseString(self):
+    def parseString(self, start):
         s = ""
-        if self.next() != '"':
+
+        if self.next() != start:
             raise Exception("Expected start of string")
         
         while self.isNext():
             c = self.next()
 
-            if c == '"':
+            if c == start:
                 break
 
             s += c
@@ -200,8 +201,8 @@ class Tokenizer:
                 self.parseNumber()
                 continue
 
-            if c == '"':
-                self.parseString()
+            if c == '"' or c == "'":
+                self.parseString(c)
             
             current_branch = self.token_tree
             chars = ""

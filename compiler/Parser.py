@@ -256,9 +256,10 @@ class VariableDecl:
 
 
 class VariableSet:
-    def __init__(self, name, expr):
+    def __init__(self, name, expr, lookup=None):
         self.name = name
         self.expr = expr
+        self.lookup = lookup
     
     def resolve(self, visitor):
         return visitor.resolveVariableSet(self)
@@ -617,15 +618,36 @@ class Parser:
 
 
     def parseVarSet(self, prec):
+        saved_index = self.index
         if not (token := self.tryMatch(TokenType.IDENTIFIER)):
             return self.parsePrec(prec + 1)
 
+        first = None
+        prev = None
+
+        while True:
+            if self.tryMatch(TokenType.DOT):
+                next_ = StructLookUp(self.match(TokenType.IDENTIFIER).value)
+            elif self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
+                expr = self.parsePrec(self.expression_prec)
+                self.match(TokenType.SQUARE_BRAC_RIGHT)
+                next_ = ListIndex(expr)
+            else:
+                break
+            
+            if prev:
+                prev.next = next_
+                prev = next_
+            else:
+                prev = next_
+                first = prev
+
         if not self.tryMatch(TokenType.DECL_EQ):
-            self.previous()
+            self.index = saved_index
             return self.parsePrec(prec + 1)
         
         expr = self.parsePrec(self.expression_prec)
-        return VariableSet(token.value, expr)
+        return VariableSet(token.value, expr, first)
         
 
     def parseBlock(self, prec):

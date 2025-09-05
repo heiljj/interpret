@@ -194,8 +194,22 @@ def test_struct1():
     buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; DEBUG v.a1; DEBUG v.a2;', [1, ord("a")])
     buildtest('struct s {int a1; char a2;}; s v; v = {1, "a"}; DEBUG v.a1; DEBUG v.a2;', [1, ord("a")])
     buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; s v2 = {2, "b"}; DEBUG v.a1; DEBUG v.a2; DEBUG v2.a1; DEBUG v2.a2;', [1, ord("a"), 2, ord("b")])
-    # buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; s.a1 = 1')
+    buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; v.a1 = 1; DEBUG v.a1;', 1)
 
+def test_struct2():
+    buildtest("""
+        struct s {int a1; char a2;};
+        struct s2 {s a1; char a2;};
+        s value = {1, 'a'};
+        s2 value2 = {value, 'b'};
+        DEBUG value2.a1.a1;
+        DEBUG value2.a1.a2;
+        value2.a1.a1 = 2;
+        DEBUG value2.a1.a1;
+        DEBUG value.a1;
+        DEBUG value.a2;
+        DEBUG value2.a2;
+    """, [1, ord("a"), 2, 1, ord("a"), ord("b")])
 
 def test_typecheck1():
     buildtest_expect('DEBUG 1 + "1";', TypeError)
