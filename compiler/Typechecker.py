@@ -121,12 +121,23 @@ class Typechecker:
         self.decl(vardecl.name)
         self.set(vardecl.name, vardecl.type)
 
+        if vardecl.expr:
+            actual = vardecl.expr.resolve(self)
+            if not vardecl.type.equiv(actual):
+                raise TypeError(f"variable {vardecl.name} of type {vardecl.type} assigned {vardecl.expr}")
+            
+            if type(vardecl.type) == StructType:
+                vardecl.expr.type = vardecl.type
+
     def resolveVariableSet(self, varset):
         expected_type = self.get(varset.name)
         actual = varset.expr.resolve(self)
 
         if not expected_type.equiv(actual):
             raise TypeError(f"variable {varset.name} of type {varset.type} assigned {varset.expr}")
+        
+        if type(expected_type) == StructType:
+            varset.expr.type = expected_type
     
     def resolveVariableGet(self, varget):
         return self.get(varget.name)

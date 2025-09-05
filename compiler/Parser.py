@@ -303,8 +303,9 @@ class Value:
         return str(self.value)
 
 class Struct:
-    def __init__(self, exprs):
+    def __init__(self, exprs, type_=None):
         self.exprs = exprs
+        self.type = type_
     
     def resolve(self, visitor):
         return visitor.resolveStruct(self)

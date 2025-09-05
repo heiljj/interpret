@@ -114,6 +114,9 @@ class Compiler:
         for expr in struct.exprs:
             instr += expr.resolve(self)
         
+        self.stack.popItems(len(struct.exprs))
+        self.stack.push(struct.type)
+        
         return instr
     
     def resolveList(self, l):
@@ -211,15 +214,21 @@ class Compiler:
         return instr
 
     def resolveVariableSet(self, varset):
-        # TODO account for multiword values
         instr = varset.expr.resolve(self)
         instr.commentFirst(f"#{varset.name} = {varset.expr}")
-        instr += self.pop("t0")
 
-        stack_diff = self.get(varset.name) - self.stack.getCurrent()
-        instr += Sw("sp", "t0", stack_diff)
-        instr.commentLast(f"END varset")
+        stack_diff = self.stack.getCurrent() - self.get(varset.name)
+
+        byte_amount = self.stack.pop()
+        offset = stack_diff - byte_amount
+
+        for _ in range(byte_amount // 4):
+            instr += Addi("sp", "sp", -4)
+            instr += Lw("t0", "sp", 0)
+            instr += Sw("sp", "t0", -offset)
+        
         return instr
+
     
     def resolveVariableGet(self, varget):
         # TODO account for multiword values
@@ -319,9 +328,7 @@ class Compiler:
         block.commentFirst("body start")
 
         cond += Beq("t0", "x0", 4 * len(block) + 4)
-        
         return decl + cond + block
-    
     def resolveFunctionDecl(self, fn):
         self.function_addrs[fn.name] = len(self.function_instr) * 4 + 4
         self.function_returns[fn.name] = fn.type
