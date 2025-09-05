@@ -30,19 +30,19 @@ class Compiler:
     def endScope(self):
         return self.locals.pop()
     
-    def bindPosition(self, varname, rel_stack_pos):
+    def bindPosition(self, varname, type_, rel_stack_pos):
         if self.locals:
             locals = self.locals[-1]
 
             if varname in locals:
                 raise Exception("Variable already bound")
 
-            locals[varname] = self.stack.getCurrent() + rel_stack_pos
+            locals[varname] = (type_, self.stack.getCurrent() + rel_stack_pos)
         else:
             if varname in self.globals:
                 raise Exception("Variable already bound")
 
-            self.globals[varname] = self.stack.getCurrent() + rel_stack_pos
+            self.globals[varname] = (type_, self.stack.getCurrent() + rel_stack_pos)
 
     def get(self, var):
         for locals in reversed(self.locals):
@@ -56,6 +56,7 @@ class Compiler:
             raise Exception("Variable does not exist")
         
         return self.globals[var]
+    
     
     def resolveStatements(self, stmts):
         instr = Instructions()
@@ -200,7 +201,7 @@ class Compiler:
         return instr
         
     def resolveVariableDecl(self, vardecl):
-        self.bindPosition(vardecl.name, 0)
+        self.bindPosition(vardecl.name, vardecl.type, 0)
 
         if vardecl.expr:
             instr = vardecl.expr.resolve(self)
@@ -217,7 +218,8 @@ class Compiler:
         instr = varset.expr.resolve(self)
         instr.commentFirst(f"#{varset.name} = {varset.expr}")
 
-        stack_diff = self.stack.getCurrent() - self.get(varset.name)
+        type_, pos = self.get(varset.name)
+        stack_diff = self.stack.getCurrent() - pos
 
         byte_amount = self.stack.pop()
         offset = stack_diff - byte_amount
@@ -231,16 +233,25 @@ class Compiler:
 
     
     def resolveVariableGet(self, varget):
-        # TODO account for multiword values
-        stack_target = self.get(varget.name)
-        stack_difference = stack_target - self.stack.getCurrent()
+        type_, pos = self.get(varget.name)
+        stack_diff = self.stack.getCurrent() - pos
+        byte_amount = type_.getWords() * 4
 
-        instr = Instructions(Lw("t0", "sp", stack_difference))
+        instr = Instructions()
+
+        for _ in range(byte_amount // 4):
+            instr += Lw("t0", "sp", -stack_diff)
+            instr += Sw("sp", "t0", 0)
+            instr += Addi("sp", "sp", 4)
+        
+        self.stack.push(type_)
         instr.commentFirst(f"varget {varget.name}")
-        instr += self.pushReg("t0")
         instr.commentLast(f"END varget")
 
         return instr
+
+
+
     
     def resolveExprStatement(self, exprs):
         instr = exprs.s.resolve(self)
@@ -336,7 +347,7 @@ class Compiler:
         self.beginScope()
 
         for i, arg in enumerate(fn.args):
-            self.bindPosition(arg, -4 * (len(fn.args) - i))
+            self.bindPosition(arg, fn.argtypes[i], -4 * (len(fn.args) - i))
         
         instr = self.pushReg("ra")
         instr.commentFirst(f"# function {fn.name}")
