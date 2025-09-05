@@ -39,6 +39,9 @@ class StructType:
     def getWords(self):
         return self.words
     
+    def getPropertyType(self, name):
+        return self.property_types[self.properties.index(name)]
+    
     def getPropertyOffset(self, name):
         return self.property_byte_offsets[name]
     
@@ -68,10 +71,16 @@ class StructType:
         return not self == o
         
         
-
 class UnknownStructType:
     def __init__(self, property_types):
         self.property_types = property_types
+        self.words = 0
+
+        for t in self.property_types:
+            self.words += t.getWords() 
+        
+    def getWords(self):
+        return self.words
 
 
 class PointerType:
@@ -89,6 +98,9 @@ class PointerType:
     
     def __eq__(self, o):
         return self.type == o.type and self.amount == o.amount
+    
+    def equiv(self, o):
+        return self.type == o.type
 
 INT = BaseType("int", 1)
 CHAR = BaseType("char", 1)
@@ -266,16 +278,39 @@ class VariableSet:
     def __str__(self):
         return f"{self.name} = {self.expr};"
 
-
 class VariableGet:
-    def __init__(self, name):
+    # if lookup:
+    # put sp offset on stack
+    # resolve next
+    # add
+    def __init__(self, name, lookup=None):
         self.name = name
+        self.lookup = lookup
     
     def resolve(self, visitor):
         return visitor.resolveVariableGet(self)
     
     def __str__(self):
         return self.name 
+
+class StructLookUp:
+    def __init__(self, identifier, next_=None):
+        self.identifier = identifier
+        self.next = next_
+    
+    def resolve(self, visitor):
+        raise Exception()
+
+# might be better to do this in a loop since the type is needed?
+class ListIndex:
+    def __init__(self, expr, next_=None):
+        self.expr = expr
+        self.next = next_
+
+    def resolve(self, visitor):
+        raise Exception()
+
+
     
 
 class BinaryOp:
@@ -381,14 +416,15 @@ class Parser:
             self.defineBinaryOpFunction(TokenType.OP_DIV),      #27
             self.parseFunctionCall,                             #28
             self.parseParns,                                    #29
-            self.parseValue                                     #30
+            self.parseVariableGet,                              #30
+            self.parseValue                                     #31
         ]
 
         self.expression_prec = 16
         self.block_prec = 6
         self.function_prec = 2
         self.var_decl_prec = 9
-        self.const_prec = 30
+        self.const_prec = 31
 
         self.ast = self.parsePrec(0)
     
@@ -472,6 +508,33 @@ class Parser:
         self.match(TokenType.SEMI)
 
         return None
+    
+    def parseVariableGet(self, prec):
+        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            return self.parsePrec(prec + 1)
+        
+        varget = VariableGet(identifier.value)
+        prev = None
+
+        while True:
+            if self.tryMatch(TokenType.DOT):
+                next_ = StructLookUp(self.match(TokenType.IDENTIFIER).value)
+            elif self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
+                expr = self.parsePrec(self.expression_prec)
+                self.match(TokenType.SQUARE_BRAC_RIGHT)
+                next_ = ListIndex(expr)
+            else:
+                break
+            
+            if prev:
+                prev.next = next_
+                prev = next_
+            else:
+                varget.lookup = next_
+                prev = next_
+        
+        return varget
+
 
     def parseValue(self, prec):
         token = self.next()
@@ -483,8 +546,6 @@ class Parser:
                 if len(token.value) != 1:
                     raise NotImplementedError("string")
                 return Value(CHAR, token.value)
-            case TokenType.IDENTIFIER:
-                return VariableGet(token.value)
             case TokenType.BOOL:
                 return Value(INT, int(token.value))
             case TokenType.SQUARE_BRAC_LEFT:
@@ -590,18 +651,18 @@ class Parser:
 
 
     def parseFunctionDefinition(self, prec):
+            save_index = self.index
             if not (type_ := self.tryParseType()):
                 return self.parsePrec(prec + 1)
             
             if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
-                self.previous()
+                self.index = save_index
                 return self.parsePrec(prec + 1)
 
             identifier = identifier.value
 
             if not self.tryMatch(TokenType.PAR_LEFT):
-                self.previous()
-                self.previous()
+                self.index = save_index
                 return self.parsePrec(prec + 1)
 
             args = []
@@ -734,8 +795,9 @@ class Parser:
             type_ = PointerType(type_)
         
         if self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
-            amount = self.parseValue().value
+            amount = self.match(TokenType.NUM).value
             type_ = PointerType(type_, amount)
+            self.match(TokenType.SQUARE_BRAC_RIGHT)
         
         return type_
 

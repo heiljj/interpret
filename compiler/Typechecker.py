@@ -1,4 +1,4 @@
-from Parser import INT, CHAR, VOID, BaseType, StructType, PointerType, UnknownStructType
+from Parser import INT, CHAR, VOID, BaseType, StructType, PointerType, UnknownStructType, StructLookUp, ListIndex
 
 from Instruction import *
 
@@ -88,7 +88,9 @@ class Typechecker:
         for expr in struct.exprs:
             types.append(expr.resolve(self))
         
-        return UnknownStructType(types)
+        t = UnknownStructType(types)
+        struct.type = t
+        return t
     
     def resolveList(self, l):
         if not l.exprs:
@@ -121,13 +123,13 @@ class Typechecker:
         self.decl(vardecl.name)
         self.set(vardecl.name, vardecl.type)
 
-        if vardecl.expr:
-            actual = vardecl.expr.resolve(self)
-            if not vardecl.type.equiv(actual):
-                raise TypeError(f"variable {vardecl.name} of type {vardecl.type} assigned {vardecl.expr}")
+        if not vardecl.expr:
+            return
+        
+        actual = vardecl.expr.resolve(self)
+        if not vardecl.type.equiv(actual):
+            raise TypeError(f"variable {vardecl.name} of type {vardecl.type} assigned {vardecl.expr}")
             
-            if type(vardecl.type) == StructType:
-                vardecl.expr.type = vardecl.type
 
     def resolveVariableSet(self, varset):
         expected_type = self.get(varset.name)
@@ -135,12 +137,38 @@ class Typechecker:
 
         if not expected_type.equiv(actual):
             raise TypeError(f"variable {varset.name} of type {varset.type} assigned {varset.expr}")
-        
-        if type(expected_type) == StructType:
-            varset.expr.type = expected_type
     
     def resolveVariableGet(self, varget):
-        return self.get(varget.name)
+        var_type = self.get(varget.name)
+
+        if not varget.lookup:
+            return var_type
+        
+        last_type = var_type
+        next_ = varget.lookup
+
+        while next_:
+            if type(next_) == StructLookUp:
+                if next_.identifier not in last_type.properties:
+                    raise Exception(f"Property {next_.identifier} not a member of struct {last_type}")
+                
+                last_type = last_type.getPropertyType(next_.identifier)
+            
+            elif type(next_) == ListIndex:
+                if type(last_type) != PointerType:
+                    raise Exception("Index on non pointer")
+                
+                if next_.expr.resolve(self) != INT:
+                    raise Exception("Non int index")
+                
+                last_type = last_type.type
+
+            else:
+                raise Exception()
+            
+            next_ = next_.next
+        
+        return last_type
 
     def resolveExprStatement(self, exprs):
         exprs.s.resolve(self)
