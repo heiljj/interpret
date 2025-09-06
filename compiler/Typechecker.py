@@ -1,4 +1,6 @@
-from Parser import INT, CHAR, VOID, BaseType, StructType, PointerType, UnknownStructType, StructLookUp, ListIndex
+from Types import *
+from AST import StructLookUp, ListIndex
+from Parser import INT, VOID
 
 from Instruction import *
 

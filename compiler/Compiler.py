@@ -1,7 +1,9 @@
 from Tokenizer import TokenType
 from Instruction import *
-from Parser import INT, CHAR, VOID, PointerType, StructType, StructLookUp, ListIndex
+from Types import *
+from Parser import INT, CHAR, VOID
 from StackManager import StackManager
+from AST import StructLookUp, ListIndex
 
 class Compiler:
     def __init__(self, ast, types):
