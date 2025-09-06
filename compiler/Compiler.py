@@ -353,6 +353,12 @@ class Compiler:
         cond += (Beq("t0", "x0", 4 * len(block) + 4))
         return cond + block
     
+    def resolveContinue(self, cont):
+        raise NotImplementedError()
+    
+    def resolveBreak(self, cont):
+        raise NotImplementedError()
+    
     def resolveFunctionDecl(self, fn):
         self.function_addrs[fn.name] = len(self.function_instr) * 4 + 4
         self.function_returns[fn.name] = fn.type

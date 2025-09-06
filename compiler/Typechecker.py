@@ -76,6 +76,31 @@ class Typechecker:
         
         return self.globals[var]
 
+    def walkIndexes(self, type_, next_):
+        while next_:
+            if type(next_) == StructLookUp:
+                if next_.identifier not in type_.properties:
+                    raise Exception(f"Property {next_.identifier} not a member of struct {type_}")
+                
+                type_ = type_.getPropertyType(next_.identifier)
+            
+            elif type(next_) == ListIndex:
+                if type(type_) != PointerType:
+                    raise Exception("Index on non pointer")
+                
+                if next_.expr.resolve(self) != INT:
+                    raise Exception("Non int index")
+                
+                type_ = type_.type
+
+            else:
+                raise Exception()
+            
+            next_.type = type_
+            next_ = next_.next
+        
+        return type_
+
     def resolveErr(self, err):
         pass
     
@@ -150,31 +175,6 @@ class Typechecker:
         varget.type = last_type
         return last_type
     
-    def walkIndexes(self, type_, next_):
-        while next_:
-            if type(next_) == StructLookUp:
-                if next_.identifier not in type_.properties:
-                    raise Exception(f"Property {next_.identifier} not a member of struct {type_}")
-                
-                type_ = type_.getPropertyType(next_.identifier)
-            
-            elif type(next_) == ListIndex:
-                if type(type_) != PointerType:
-                    raise Exception("Index on non pointer")
-                
-                if next_.expr.resolve(self) != INT:
-                    raise Exception("Non int index")
-                
-                type_ = type_.type
-
-            else:
-                raise Exception()
-            
-            next_.type = type_
-            next_ = next_.next
-        
-        return type_
-
     def resolveDebug(self, debug):
         debug.expr.resolve(self)
 
