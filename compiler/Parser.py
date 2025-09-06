@@ -103,71 +103,26 @@ class Parser:
     
     def parsePrec(self, prec):
         return self.parsers[prec](prec)
-    
-    def parseExprStatement(self, prec):
-        value = ExprStatement(self.parsePrec(prec + 1))
-        return value
-    
-    def parseErr(self, prec):
-        if self.tryMatch(TokenType.ERR):
-            return Err()
-        
-        return self.parsePrec(prec + 1)
-    
-    def parseStatement(self, prec):
-        v = self.parsePrec(prec + 1)
-        self.match(TokenType.SEMI)
-        return v
-    
-    def parseDefStruct(self, prec):
-        if not self.tryMatch(TokenType.STRUCT):
-            return self.parsePrec(prec + 1)
-        
-        name = self.match(TokenType.IDENTIFIER).value
-        self.match(TokenType.BRAC_LEFT)
 
-        properties = []
-        property_types = []
-
-        while (type_ := self.tryParseType()):
-            property_types.append(type_)
-            properties.append(self.match(TokenType.IDENTIFIER).value)
-            self.match(TokenType.SEMI)
-        
-        type_ = StructType(properties, property_types)
-        self.registered_types[name] = type_
-
-        self.match(TokenType.BRAC_RIGHT)
-        self.match(TokenType.SEMI)
-
-        return None
-    
-    def parseVariableGet(self, prec):
+    def tryParseType(self):
         if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
-            return self.parsePrec(prec + 1)
+            return False
         
-        varget = VariableGet(identifier.value)
-        prev = None
+        if identifier.value not in self.registered_types:
+            self.previous()
+            return False
 
-        while True:
-            if self.tryMatch(TokenType.DOT):
-                next_ = StructLookUp(self.match(TokenType.IDENTIFIER).value)
-            elif self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
-                expr = self.parsePrec(self.expression_prec)
-                self.match(TokenType.SQUARE_BRAC_RIGHT)
-                next_ = ListIndex(expr)
-            else:
-                break
-            
-            if prev:
-                prev.next = next_
-                prev = next_
-            else:
-                varget.lookup = next_
-                prev = next_
+        type_ = self.getType(identifier.value)
+
+        while self.tryMatch(TokenType.OP_MUL):
+            type_ = PointerType(type_)
         
-        return varget
-
+        if self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
+            amount = self.match(TokenType.NUM).value
+            type_ = PointerType(type_, amount)
+            self.match(TokenType.SQUARE_BRAC_RIGHT)
+        
+        return type_
 
     def parseValue(self, prec):
         token = self.next()
@@ -204,10 +159,84 @@ class Parser:
                 return Struct(parms)
 
             case _:
-                # self.previous()
-                # return self.parsePrec(self.expression_prec)
                 raise Exception("Unknown value token")
 
+    def parseVariableGet(self, prec):
+        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            return self.parsePrec(prec + 1)
+        
+        varget = VariableGet(identifier.value)
+        prev = None
+
+        while True:
+            if self.tryMatch(TokenType.DOT):
+                next_ = StructLookUp(self.match(TokenType.IDENTIFIER).value)
+            elif self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
+                expr = self.parsePrec(self.expression_prec)
+                self.match(TokenType.SQUARE_BRAC_RIGHT)
+                next_ = ListIndex(expr)
+            else:
+                break
+            
+            if prev:
+                prev.next = next_
+                prev = next_
+            else:
+                varget.lookup = next_
+                prev = next_
+        
+        return varget
+
+    def parseParns(self, prec):
+        if not self.tryMatch(TokenType.PAR_LEFT):
+            return self.parsePrec(prec + 1)
+        
+        expr = self.parsePrec(self.expression_prec)
+        self.match(TokenType.PAR_RIGHT)
+        return expr
+
+    def parseFunctionCall(self, prec):
+        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            return self.parsePrec(prec + 1)
+        
+        if not self.tryMatch(TokenType.PAR_LEFT):
+            self.previous()
+            return self.parsePrec(prec + 1)
+
+        args = []
+
+        while self.peek().kind != TokenType.PAR_RIGHT:
+            args.append(self.parsePrec(self.expression_prec))
+
+            if not self.tryMatch(TokenType.COMMA):
+                break
+        
+        self.match(TokenType.PAR_RIGHT)
+        return FunctionCall(identifier.value, args)
+    
+    def parseDefStruct(self, prec):
+        if not self.tryMatch(TokenType.STRUCT):
+            return self.parsePrec(prec + 1)
+        
+        name = self.match(TokenType.IDENTIFIER).value
+        self.match(TokenType.BRAC_LEFT)
+
+        properties = []
+        property_types = []
+
+        while (type_ := self.tryParseType()):
+            property_types.append(type_)
+            properties.append(self.match(TokenType.IDENTIFIER).value)
+            self.match(TokenType.SEMI)
+        
+        type_ = StructType(properties, property_types)
+        self.registered_types[name] = type_
+
+        self.match(TokenType.BRAC_RIGHT)
+        self.match(TokenType.SEMI)
+
+        return None
+    
     def defineBinaryOpFunction(self, op) :
         def parseBinaryOp(prec):
             left = self.parsePrec(prec + 1)
@@ -220,43 +249,40 @@ class Parser:
 
         return parseBinaryOp
 
-    def parseStatements(self, prec):
-        statements = []
-        while self.isNext():
-            n = self.parsePrec(prec + 1)
-            if n:
-                statements.append(n)
-
-            if not self.isNext() or self.peek().kind == TokenType.BRAC_RIGHT:
-                break
-        
-        return Statements(statements)
-
     def parseDebug(self, prec):
         if self.tryMatch(TokenType.DEBUG):
             inner = self.parsePrec(prec+1)
             return Debug(inner)
         
         return self.parsePrec(prec + 1)
-    
-    
-    def parseVarDecl(self, prec):
-        saved_index = self.index
 
-        if not (type_ := self.tryParseType()):
+    def parseExprStatement(self, prec):
+        value = ExprStatement(self.parsePrec(prec + 1))
+        return value
+
+    def parseBreak(self, prec):
+        if not self.tryMatch(TokenType.BREAK):
             return self.parsePrec(prec + 1)
         
-        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
-            self.index = saved_index
+        self.match(TokenType.SEMI)
+
+        return Break()
+
+    def parseContinue(self, prec):
+        if not self.tryMatch(TokenType.CONTINUE):
             return self.parsePrec(prec + 1)
         
-        #NOTE this will break if something with greater prec has two IDs in a row
-        if not self.tryMatch(TokenType.DECL_EQ):
-            return VariableDecl(identifier.value, None, type_)
+        self.match(TokenType.SEMI)
 
-        right = self.parsePrec(self.expression_prec)
-        return VariableDecl(identifier.value, right, type_)
+        return Continue()
+    
+    def parseReturn(self, prec):
+        if not self.tryMatch(TokenType.RETURN):
+            return self.parsePrec(prec + 1)
+        
+        expr = self.parsePrec(self.expression_prec)
 
+        return Return(expr)
 
     def parseVarSet(self, prec):
         saved_index = self.index
@@ -289,7 +315,34 @@ class Parser:
         
         expr = self.parsePrec(self.expression_prec)
         return VariableSet(token.value, expr, first)
+
+    def parseVarDecl(self, prec):
+        saved_index = self.index
+
+        if not (type_ := self.tryParseType()):
+            return self.parsePrec(prec + 1)
         
+        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            self.index = saved_index
+            return self.parsePrec(prec + 1)
+        
+        #NOTE this will break if something with greater prec has two IDs in a row
+        if not self.tryMatch(TokenType.DECL_EQ):
+            return VariableDecl(identifier.value, None, type_)
+
+        right = self.parsePrec(self.expression_prec)
+        return VariableDecl(identifier.value, right, type_)
+
+    def parseErr(self, prec):
+        if self.tryMatch(TokenType.ERR):
+            return Err()
+        
+        return self.parsePrec(prec + 1)
+
+    def parseStatement(self, prec):
+        v = self.parsePrec(prec + 1)
+        self.match(TokenType.SEMI)
+        return v
 
     def parseBlock(self, prec):
         if not self.tryMatch(TokenType.BRAC_LEFT):
@@ -302,7 +355,52 @@ class Parser:
         self.match(TokenType.BRAC_RIGHT)
 
         return Block(middle)
+    
+    def parseIf(self, prec):
+        if not self.tryMatch(TokenType.IF):
+            return self.parsePrec(prec + 1)
 
+        self.match(TokenType.PAR_LEFT)
+        cond = self.parsePrec(self.expression_prec)
+        self.match(TokenType.PAR_RIGHT)
+
+        if_expr = self.parsePrec(self.block_prec)
+
+        if not self.tryMatch(TokenType.ELSE):
+            return If(cond, if_expr, None)
+        
+        else_expr = self.parsePrec(self.block_prec)
+        return If(cond, if_expr, else_expr)
+
+    def parseFor(self, prec):
+        if not self.tryMatch(TokenType.FOR):
+            return self.parsePrec(prec + 1)
+
+        self.match(TokenType.PAR_LEFT)
+
+        decl = self.parsePrec(self.var_decl_prec)
+        self.match(TokenType.SEMI)
+        cond = self.parsePrec(self.expression_prec)
+        self.match(TokenType.SEMI)
+        incr = self.parsePrec(self.var_decl_prec)
+
+        self.match(TokenType.PAR_RIGHT)
+
+        block = self.parsePrec(self.block_prec)
+
+        while_block = While(cond, Block(Statements([block, incr])))
+        return Block(Statements([decl, while_block]))
+
+    def parseWhile(self, prec):
+        if not self.tryMatch(TokenType.WHILE):
+            return self.parsePrec(prec + 1)
+        
+        self.match(TokenType.PAR_LEFT)
+        cond = self.parsePrec(self.expression_prec)
+        self.match(TokenType.PAR_RIGHT)
+
+        block = self.parsePrec(self.block_prec)
+        return While(cond, block)
 
     def parseFunctionDefinition(self, prec):
             save_index = self.index
@@ -333,128 +431,18 @@ class Parser:
             self.match(TokenType.PAR_RIGHT)
             block = self.parsePrec(self.block_prec)
             return FunctionDecl(identifier, args, block, type_, arg_types)
-    
 
-    def parseFunctionCall(self, prec):
-        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
-            return self.parsePrec(prec + 1)
-        
-        if not self.tryMatch(TokenType.PAR_LEFT):
-            self.previous()
-            return self.parsePrec(prec + 1)
+    def parseStatements(self, prec):
+        statements = []
+        while self.isNext():
+            n = self.parsePrec(prec + 1)
+            if n:
+                statements.append(n)
 
-        args = []
-
-        while self.peek().kind != TokenType.PAR_RIGHT:
-            args.append(self.parsePrec(self.expression_prec))
-
-            if not self.tryMatch(TokenType.COMMA):
+            if not self.isNext() or self.peek().kind == TokenType.BRAC_RIGHT:
                 break
         
-        self.match(TokenType.PAR_RIGHT)
-        return FunctionCall(identifier.value, args)
-    
-
-    def parseReturn(self, prec):
-        if not self.tryMatch(TokenType.RETURN):
-            return self.parsePrec(prec + 1)
-        
-        expr = self.parsePrec(self.expression_prec)
-
-        return Return(expr)
-    
-
-    def parseIf(self, prec):
-        if not self.tryMatch(TokenType.IF):
-            return self.parsePrec(prec + 1)
-
-        self.match(TokenType.PAR_LEFT)
-        cond = self.parsePrec(self.expression_prec)
-        self.match(TokenType.PAR_RIGHT)
-
-        if_expr = self.parsePrec(self.block_prec)
-
-        if not self.tryMatch(TokenType.ELSE):
-            return If(cond, if_expr, None)
-        
-        else_expr = self.parsePrec(self.block_prec)
-        return If(cond, if_expr, else_expr)
-        
-
-
-    def parseWhile(self, prec):
-        if not self.tryMatch(TokenType.WHILE):
-            return self.parsePrec(prec + 1)
-        
-        self.match(TokenType.PAR_LEFT)
-        cond = self.parsePrec(self.expression_prec)
-        self.match(TokenType.PAR_RIGHT)
-
-        block = self.parsePrec(self.block_prec)
-        return While(cond, block)
-
-    def parseFor(self, prec):
-        if not self.tryMatch(TokenType.FOR):
-            return self.parsePrec(prec + 1)
-
-        self.match(TokenType.PAR_LEFT)
-
-        decl = self.parsePrec(self.var_decl_prec)
-        self.match(TokenType.SEMI)
-        cond = self.parsePrec(self.expression_prec)
-        self.match(TokenType.SEMI)
-        incr = self.parsePrec(self.var_decl_prec)
-
-        self.match(TokenType.PAR_RIGHT)
-
-        block = self.parsePrec(self.block_prec)
-
-        while_block = While(cond, Block(Statements([block, incr])))
-        return Block(Statements([decl, while_block]))
-
-    def parseParns(self, prec):
-        if not self.tryMatch(TokenType.PAR_LEFT):
-            return self.parsePrec(prec + 1)
-        
-        expr = self.parsePrec(self.expression_prec)
-        self.match(TokenType.PAR_RIGHT)
-        return expr
-
-    def parseBreak(self, prec):
-        if not self.tryMatch(TokenType.BREAK):
-            return self.parsePrec(prec + 1)
-        
-        self.match(TokenType.SEMI)
-
-        return Break()
-
-    def parseContinue(self, prec):
-        if not self.tryMatch(TokenType.CONTINUE):
-            return self.parsePrec(prec + 1)
-        
-        self.match(TokenType.SEMI)
-
-        return Continue()
-    
-    def tryParseType(self):
-        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
-            return False
-        
-        if identifier.value not in self.registered_types:
-            self.previous()
-            return False
-
-        type_ = self.getType(identifier.value)
-
-        while self.tryMatch(TokenType.OP_MUL):
-            type_ = PointerType(type_)
-        
-        if self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
-            amount = self.match(TokenType.NUM).value
-            type_ = PointerType(type_, amount)
-            self.match(TokenType.SQUARE_BRAC_RIGHT)
-        
-        return type_
+        return Statements(statements)
 
 
 def parse(tokens: list[Token]):
