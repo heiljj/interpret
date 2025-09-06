@@ -126,7 +126,7 @@ class Typechecker:
         for i in range(1, len(l.exprs)):
             actual_type = l.exprs[i].resolve(self)
 
-            if not expected_type.equiv(actual_type):
+            if not expected_type == actual_type:
                 raise TypeError(f"List init type mismatch expected {expected_type} was {actual_type}")
         
         return PointerType(actual_type, len(l.exprs))
@@ -149,7 +149,7 @@ class Typechecker:
             return
         
         actual = vardecl.expr.resolve(self)
-        if not vardecl.type.equiv(actual):
+        if not vardecl.type == actual:
             raise TypeError(f"variable {vardecl.name} of type {vardecl.type} assigned {vardecl.expr}")
 
     def resolveVariableSet(self, varset):
@@ -157,14 +157,14 @@ class Typechecker:
         actual = varset.expr.resolve(self)
 
         if not varset.lookup:
-            if not expected_type.equiv(actual):
+            if not expected_type == actual:
                 raise TypeError(f"variable {varset.name} of type {expected_type} assigned {varset.expr}")
 
             return
         
         last_type = self.walkIndexes(expected_type, varset.lookup)
         
-        if not last_type.equiv(actual):
+        if not last_type == actual:
             raise Exception(f"Property {last_type.identifier} not a member of struct {last_type}")
 
     def resolveVariableGet(self, varget):

@@ -134,7 +134,7 @@ class Parser:
             properties.append(self.match(TokenType.IDENTIFIER).value)
             self.match(TokenType.SEMI)
         
-        type_ = StructType(name, properties, property_types)
+        type_ = StructType(properties, property_types)
         self.registered_types[name] = type_
 
         self.match(TokenType.BRAC_RIGHT)
