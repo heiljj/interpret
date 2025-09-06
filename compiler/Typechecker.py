@@ -177,6 +177,10 @@ class Typechecker:
         varget.type = last_type
         return last_type
     
+    def resolveVariableGetReference(self, vargetref):
+        self.resolveVariableGet(vargetref)
+        return INT
+    
     def resolveDebug(self, debug):
         debug.expr.resolve(self)
 

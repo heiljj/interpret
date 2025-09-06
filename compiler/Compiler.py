@@ -285,6 +285,24 @@ class Compiler:
         instr.commentFirst(f"varget {varget.name}")
         instr.commentLast(f"END varget")
         return instr
+    
+    def resolveVariableGetReference(self, vargetref):
+        type_, pos = self.get(vargetref.name)
+        instr = Instructions()
+        rel_pos = pos - self.stack.getCurrent()
+
+        # walkIndex expects a value 
+        instr += self.push(rel_pos)
+
+        if vargetref.lookup:
+            walk_instr, _ = self.walkIndexes(type_, vargetref.lookup)
+            instr += walk_instr
+        
+        instr += self.pop("t0")
+        instr += Add("t0", "t0", "sp")
+        instr += self.pushReg("t0")
+
+        return instr
 
     def resolveDebug(self, debug):
         instr = debug.expr.resolve(self)

@@ -30,6 +30,7 @@ class Parser:
             self.parseErr,                                      #8
             self.parseVarDecl,                                  #9
             self.parseVarSet,                                   #10
+            # add *
             self.parseReturn,                                   #11
             self.parseContinue,                                 #12
             self.parseBreak,                                    #13
@@ -49,6 +50,7 @@ class Parser:
             self.defineBinaryOpFunction(TokenType.OP_DIV),      #27
             self.parseFunctionCall,                             #28
             self.parseParns,                                    #29
+            # add &
             self.parseVariableGet,                              #30
             self.parseValue                                     #31
         ]
@@ -162,10 +164,19 @@ class Parser:
                 raise Exception("Unknown value token")
 
     def parseVariableGet(self, prec):
+        save_index = self.index
+
+        deref = True if self.tryMatch(TokenType.AMP) else False
+
         if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            self.index = save_index
             return self.parsePrec(prec + 1)
         
-        varget = VariableGet(identifier.value)
+        if deref:
+            varget = VariableGetReference(identifier.value)
+        else:
+            varget = VariableGet(identifier.value)
+
         prev = None
 
         while True:

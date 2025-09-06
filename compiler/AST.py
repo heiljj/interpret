@@ -95,6 +95,10 @@ class VariableGet(ASTNode):
     def __str__(self):
         return self.name 
 
+class VariableGetReference(VariableGet):
+    def __init__(self, name, lookup=None, type_=None):
+        super().__init__(name, lookup, type_)
+
 class Debug(ASTNode):
     def __init__(self, expr):
         super().__init__()
