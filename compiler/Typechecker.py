@@ -75,15 +75,13 @@ class Typechecker:
             raise Exception("Variable does not exist")
         
         return self.globals[var]
-    
 
-    def resolveStatements(self, stmts):
-        for s in stmts.statements:
-            s.resolve(self)
+    def resolveErr(self, err):
+        pass
     
     def resolveValue(self, value):
         return value.type
-    
+
     def resolveStruct(self, struct):
         types = []
         for expr in struct.exprs:
@@ -92,7 +90,7 @@ class Typechecker:
         t = UnknownStructType(types)
         struct.type = t
         return t
-    
+
     def resolveList(self, l):
         if not l.exprs:
             return PointerType(VOID, 0)
@@ -106,10 +104,6 @@ class Typechecker:
         
         return PointerType(actual_type, len(l.exprs))
 
-
-    def resolveErr(self, err):
-        pass
-            
     def resolveBinaryOp(self, op):
         left = op.left.resolve(self)
         right = op.right.resolve(self)
@@ -119,7 +113,7 @@ class Typechecker:
         
         op.type = left
         return left
-            
+
     def resolveVariableDecl(self, vardecl):
         self.decl(vardecl.name)
         self.set(vardecl.name, vardecl.type)
@@ -130,7 +124,6 @@ class Typechecker:
         actual = vardecl.expr.resolve(self)
         if not vardecl.type.equiv(actual):
             raise TypeError(f"variable {vardecl.name} of type {vardecl.type} assigned {vardecl.expr}")
-            
 
     def resolveVariableSet(self, varset):
         expected_type = self.get(varset.name)
@@ -142,80 +135,57 @@ class Typechecker:
 
             return
         
-        last_type = expected_type
-        next_ = varset.lookup
-
-        while next_:
-            if type(next_) == StructLookUp:
-                if next_.identifier not in last_type.properties:
-                    raise Exception(f"Property {next_.identifier} not a member of struct {last_type}")
-                
-                last_type = last_type.getPropertyType(next_.identifier)
-            
-            elif type(next_) == ListIndex:
-                if type(last_type) != PointerType:
-                    raise Exception("Index on non pointer")
-                
-                if next_.expr.resolve(self) != INT:
-                    raise Exception("Non int index")
-                
-                last_type = last_type.type
-
-            else:
-                raise Exception()
-            
-            next_.type = last_type
-            next_ = next_.next
+        last_type = self.walkIndexes(expected_type, varset.lookup)
         
         if not last_type.equiv(actual):
-            raise Exception(f"Property {next_.identifier} not a member of struct {last_type}")
-    
+            raise Exception(f"Property {last_type.identifier} not a member of struct {last_type}")
+
     def resolveVariableGet(self, varget):
         var_type = self.get(varget.name)
 
         if not varget.lookup:
             return var_type
         
-        last_type = var_type
-        next_ = varget.lookup
-
+        last_type = self.walkIndexes(var_type, varget.lookup)
+        varget.type = last_type
+        return last_type
+    
+    def walkIndexes(self, type_, next_):
         while next_:
             if type(next_) == StructLookUp:
-                if next_.identifier not in last_type.properties:
-                    raise Exception(f"Property {next_.identifier} not a member of struct {last_type}")
+                if next_.identifier not in type_.properties:
+                    raise Exception(f"Property {next_.identifier} not a member of struct {type_}")
                 
-                last_type = last_type.getPropertyType(next_.identifier)
+                type_ = type_.getPropertyType(next_.identifier)
             
             elif type(next_) == ListIndex:
-                if type(last_type) != PointerType:
+                if type(type_) != PointerType:
                     raise Exception("Index on non pointer")
                 
                 if next_.expr.resolve(self) != INT:
                     raise Exception("Non int index")
                 
-                last_type = last_type.type
+                type_ = type_.type
 
             else:
                 raise Exception()
             
-            next_.type = last_type
+            next_.type = type_
             next_ = next_.next
         
-        varget.type = last_type
-        return last_type
+        return type_
+
+    def resolveDebug(self, debug):
+        debug.expr.resolve(self)
 
     def resolveExprStatement(self, exprs):
         exprs.s.resolve(self)
-    
-    def resolveDebug(self, debug):
-        debug.expr.resolve(self)
-    
+
     def resolveBlock(self, block):
         self.beginScope()
         block.statements.resolve(self)
         self.endScope()
 
-    
     def resolveIf(self, if_):
         cond = if_.cond.resolve(self)
 
@@ -276,6 +246,10 @@ class Typechecker:
         t = ret.expr.resolve(self)
         if self.getExpectedReturnType() != t:
             raise TypeError("wrong return type")
+
+    def resolveStatements(self, stmts):
+        for s in stmts.statements:
+            s.resolve(self)
 
         
 def typecheck(ast):
