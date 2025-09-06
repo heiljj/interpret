@@ -101,7 +101,7 @@ class Typechecker:
         for i in range(1, len(l.exprs)):
             actual_type = l.exprs[i].resolve(self)
 
-            if expected_type != actual_type:
+            if not expected_type.equiv(actual_type):
                 raise TypeError(f"List init type mismatch expected {expected_type} was {actual_type}")
         
         return PointerType(actual_type, len(l.exprs))

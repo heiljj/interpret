@@ -103,7 +103,7 @@ class Compiler:
                 instr += tree.expr.resolve(self)
                 instr += self.pop("t0")
 
-                instr += Addi("t1", "x0", type_.getWords())
+                instr += Addi("t1", "x0", type_.type.getWords() * 4)
                 instr += Mul("t0", "t1", "t0")
 
                 instr += self.pop("t1")
@@ -272,7 +272,6 @@ class Compiler:
 
         byte_amount = type_.getWords() * 4
         instr += self.pop("t1")
-
 
         for _ in range(byte_amount // 4):
             instr += Add("t0", "sp", "t1")

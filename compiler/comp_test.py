@@ -232,6 +232,31 @@ def test_struct2():
         DEBUG value.a2;
     """, [2, ord("c"), 1, ord("a")])
 
+def test_list1():
+    buildtest("int[5] a = [0, 1, 2, 3, 4]; DEBUG a[0]; DEBUG a[1]; DEBUG a[2]; DEBUG a[1 + 2];", [0, 1, 2, 3])
+    buildtest("int[5] a = [0, 1, 2, 3, 4, 5]; DEBUG a[a[1] + a[2]];", 3)
+    buildtest("int[5] a = [0, 1, 2, 3, 4, 5]; a[0] = 1; a[1] = 2; a[2] = 3; DEBUG a[0]; DEBUG a[1]; DEBUG a[2];", [1, 2, 3])
+
+def test_list2():
+    buildtest("""
+    struct s {
+        int a1;
+        char a2;
+    };
+
+    s[3] l = [{1, "a"}, {2, "b"}, {3, "c"}];
+    l[0] = l[2];
+    l[1].a1 = 4;
+    l[1].a2 = "d";
+    DEBUG l[0].a1;
+    DEBUG l[0].a2;
+    DEBUG l[1].a1;
+    DEBUG l[1].a2;
+    DEBUG l[2].a1;
+    DEBUG l[2].a2;
+""", [3, ord("c"), 4, ord("d"), 3, ord("c")])
+
+
 def test_typecheck1():
     buildtest_expect('DEBUG 1 + "1";', TypeError)
     buildtest_expect('char f() {return 1;}', TypeError)
@@ -259,6 +284,10 @@ def test_typecheck3():
 
     buildtest('struct s {int a1; char a2;}; struct s2 {s a1; char a2;}; s2 a = {{1, "2"}, "a"}; int a2 = a.a1.a1;', None)
     buildtest_expect('struct s {int a1; char a2;}; struct s2 {s a1; char a2;}; s2 a = {{1, "2"}, "a"}; int a2 = a.a1.a2;', TypeError)
+
+def test_typecheck4():
+    buildtest("int[2] a = [1, 2]; int b = a[0]; DEBUG b;", 1)
+    buildtest_expect("int[2] a = [1, 2]; char b = a[0]; DEBUG b;", TypeError)
 
 
 def test_expr_old5():

@@ -56,7 +56,7 @@ class StructType:
             return False
         
         for i in range(len(o.property_types)):
-            if o.property_types[i] != self.property_types[i]:
+            if not o.property_types[i].equiv(self.property_types[i]):
                 return False
         
         return True
@@ -81,6 +81,17 @@ class UnknownStructType:
         
     def getWords(self):
         return self.words
+    
+    def equiv(self, o):
+        if len(o.property_types) != len(self.property_types):
+            return False
+
+        for i in range(len(o.property_types)):
+            if not o.property_types[i].equiv(self.property_types[i]):
+                return False
+        
+        return True
+
 
 
 class PointerType:
