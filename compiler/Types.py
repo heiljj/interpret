@@ -19,10 +19,10 @@ class PointerType(BaseType):
         self.amount = amount
     
     def getWords(self):
-        if self.amount:
-            return self.type.getWords() * self.amount
-
         return 1
+    
+    def getAllocWords(self):
+        return self.type.getWords() * self.amount
     
     def getPointedWords(self):
         return self.type.getWords()

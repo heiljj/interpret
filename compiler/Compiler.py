@@ -226,14 +226,27 @@ class Compiler:
         
     def resolveVariableDecl(self, vardecl):
         self.bindPosition(vardecl.name, vardecl.type, 0)
+        instr = Instructions()
+
+        if type(vardecl.type) == PointerType:
+            instr += Addi("t0", "sp", 4)
+            instr += Sw("sp", "t0", 0)
+            instr += Addi("sp", "sp", 4)
+            # TODO change 
+            self.stack.push(INT)
 
         if vardecl.expr:
-            instr = vardecl.expr.resolve(self)
+            instr += vardecl.expr.resolve(self)
             instr.commentLast("END varsetanddecl")
+            instr.commentFirst("varsetanddecl")
             return instr
 
-        instr = Instructions()
-        for _ in range(vardecl.type.getWords()):
+        if type(vardecl.type) == PointerType:
+            amount = vardecl.type.getAllocWords()
+        else:
+            amount = vardecl.type.getWords()
+
+        for _ in range(amount):
             instr += self.push(0)
 
         return instr
@@ -243,14 +256,25 @@ class Compiler:
         instr.commentFirst(f"#{varset.name} = {varset.expr}")
 
         type_, pos = self.get(varset.name)
-        stack_diff = self.stack.getCurrent() - pos
+        current = self.stack.getCurrent()
+        stack_diff = current - pos
 
         byte_amount = self.stack.pop()
 
-        instr += self.push(byte_amount - stack_diff)
-        if varset.lookup:
+        if varset.lookup and type(type_) == PointerType:
+            instr += Lw("t0", "sp", pos - current)
+            instr += Addi("t0", "t0", - current)
+            instr += Addi("t0", "t0", byte_amount)
+
+            instr += self.pushReg("t0")
             index_instr, _ = self.walkIndexes(type_, varset.lookup)
             instr += index_instr
+        elif varset.lookup:
+            instr += self.push(byte_amount - stack_diff)
+            index_instr, _ = self.walkIndexes(type_, varset.lookup)
+            instr += index_instr
+        else:
+            instr += self.push(byte_amount - stack_diff)
 
         instr += self.pop("t1")
 
@@ -266,11 +290,21 @@ class Compiler:
         type_, pos = self.get(varget.name)
         instr = Instructions()
 
-        instr += self.push(pos - self.stack.getCurrent())
+        if varget.lookup and type(type_) == PointerType:
+            instr += Lw("t0", "sp", pos - self.stack.getCurrent())
+            instr += Addi("t0", "t0", -self.stack.getCurrent())
+            instr += self.pushReg("t0")
 
-        if varget.lookup:
             index_instr, type_ = self.walkIndexes(type_, varget.lookup)
             instr += index_instr
+            instr.commentFirst("lookup start")
+            instr.commentLast("lookup end")
+        elif varget.lookup:
+            instr += self.push(pos - self.stack.getCurrent())
+            index_instr, type_ = self.walkIndexes(type_, varget.lookup)
+            instr += index_instr
+        else:
+            instr += self.push(pos - self.stack.getCurrent())
 
         byte_amount = type_.getWords() * 4
         instr += self.pop("t1")
@@ -282,7 +316,7 @@ class Compiler:
             instr += Addi("sp", "sp", 4)
         
         self.stack.push(type_)
-        instr.commentFirst(f"varget {varget.name}")
+        # instr.commentFirst(f"varget {varget.name}")
         instr.commentLast(f"END varget")
         return instr
     
