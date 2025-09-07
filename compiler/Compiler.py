@@ -317,19 +317,20 @@ class Compiler:
         type_, pos = self.get(varget.name)
         instr = Instructions()
 
-        if varget.lookup and type(type_) == PointerType:
+        if False:
+        # if varget.lookup and type(type_) == PointerType:
             instr += Lw("t0", "sp", pos - self.stack.getCurrent())
             instr += Addi("t0", "t0", -self.stack.getCurrent())
             instr += self.pushReg("t0")
 
-            index_instr, type_ = self.walkIndexes(type_, varget.lookup)
-            instr += index_instr
-            instr.commentFirst("lookup start")
-            instr.commentLast("lookup end")
+            # index_instr, type_ = self.walkIndexes(type_, varget.lookup)
+            # instr += index_instr
+            # instr.commentFirst("lookup start")
+            # instr.commentLast("lookup end")
         elif varget.lookup:
             instr += self.push(pos - self.stack.getCurrent())
-            index_instr, type_ = self.walkIndexes(type_, varget.lookup)
-            instr += index_instr
+            # index_instr, type_ = self.walkIndexes(type_, varget.lookup)
+            # instr += index_instr
         else:
             instr += self.push(pos - self.stack.getCurrent())
 
@@ -347,6 +348,67 @@ class Compiler:
         instr.commentLast(f"END varget")
         return instr
     
+    def resolveLookUpRoot(self, lur):
+        instr = Instructions()
+        instr += lur.expr.resolve(self)
+
+        if type(lur.expr.type) != PointerType:
+            instr += Addi("t0", "sp", -4 * lur.expr.type.getWords())
+            instr += self.pushReg("t0")
+
+        instr.commentLast("eval done")
+        instr += lur.next.resolve(self)
+        instr.commentLast("addr lu done")
+        # correct here
+
+        byte_amount = lur.type.getWords() * 4
+        instr += self.pop("t0") # <-- should be t0?
+
+        if type(lur.expr.type) != PointerType:
+            instr += Addi("sp", "sp", -self.stack.pop())
+        
+        # sp=20 (seems good)
+        instr.commentLast("stop here")
+
+        for _ in range(byte_amount // 4): #<- copied from wrong place prob
+            instr += Lw("t1", "t0", 0)
+            instr += Sw("sp", "t1", 0)
+            instr += Addi("sp", "sp", 4)
+            instr += Addi("t0", "t0", 4)
+        
+        self.stack.push(lur.type)
+        # self.stack.push(INT)
+        return instr
+
+    def resolveStructLookUp(self, slu):
+        instr = Instructions()
+        instr += self.pop("t0")
+        instr += Addi("t0", "t0", 4 * slu.type.getPropertyOffset(slu.identifier))
+        instr += self.pushReg("t0")
+
+        if slu.next:
+            instr += slu.next.resolve(self)
+        
+        return instr
+
+
+    def resolveListIndex(self, li):
+        instr = Instructions()
+        instr += li.expr.resolve(self)
+
+        instr += self.pop("t1") 
+        instr += self.pop("t0") # ref
+
+        instr += Addi("t2", "x0", li.type.type.getWords() * 4)
+        instr += Mul("t1", "t1", "t2")
+        instr += Add("t0", "t0", "t1")
+        instr += self.pushReg("t0")
+
+        if li.next:
+            instr += li.next.resolve(self)
+        
+        return instr
+
     def resolveVariableGetReference(self, vargetref):
         type_, pos = self.get(vargetref.name)
         instr = Instructions()
@@ -368,6 +430,7 @@ class Compiler:
     def resolveDebug(self, debug):
         instr = debug.expr.resolve(self)
         instr += Debug()
+        instr.commentFirst("start debug")
         return instr
     
     def resolveExprStatement(self, exprs):

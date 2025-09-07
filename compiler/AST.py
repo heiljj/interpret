@@ -41,15 +41,19 @@ class List(ASTNode):
     def __str__(self):
         return str(self.exprs)
 
+class LookUpRoot(ASTNode):
+    def __init__(self, expr, next_):
+        super().__init__()
+        self.expr = expr
+        self.next = next_
+        self.type = None
+
 class StructLookUp(ASTNode):
     def __init__(self, identifier, next_=None, type_=None):
         super().__init__()
         self.identifier = identifier
         self.next = next_
         self.type = type_
-    
-    def resolve(self, visitor):
-        raise Exception()
 
 class ListIndex(ASTNode):
     def __init__(self, expr, next_=None, type_=None):
@@ -57,9 +61,6 @@ class ListIndex(ASTNode):
         self.expr = expr
         self.next = next_
         self.type = type_
-
-    def resolve(self, visitor):
-        raise Exception()
 
 class BinaryOp(ASTNode):
     def __init__(self, left, op, right):

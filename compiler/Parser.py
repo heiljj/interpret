@@ -48,19 +48,19 @@ class Parser:
             self.defineBinaryOpFunction(TokenType.OP_MINUS),    #25
             self.defineBinaryOpFunction(TokenType.OP_MUL),      #26
             self.defineBinaryOpFunction(TokenType.OP_DIV),      #27
-            self.parseFunctionCall,                             #28
+            self.parseIndexes,                                  #28
             self.parseDereference,                              #29
-            #HERE
-            self.parseParns,                                    #30
-            self.parseVariableGet,                              #31
-            self.parseValue                                     #32
+            self.parseFunctionCall,                             #30
+            self.parseParns,                                    #31
+            self.parseVariableGet,                              #32
+            self.parseValue                                     #33
         ]
 
         self.expression_prec = 16
         self.block_prec = 6
         self.function_prec = 2
         self.var_decl_prec = 9
-        self.const_prec = 32
+        self.const_prec = 33
 
         self.ast = self.parsePrec(0)
     
@@ -163,21 +163,11 @@ class Parser:
 
             case _:
                 raise Exception("Unknown value token")
+    
+    def parseIndexes(self, prec):
+        pre = self.parsePrec(prec + 1)
 
-    def parseVariableGet(self, prec):
-        save_index = self.index
-
-        deref = True if self.tryMatch(TokenType.AMP) else False
-
-        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
-            self.index = save_index
-            return self.parsePrec(prec + 1)
-        
-        if deref:
-            varget = VariableGetReference(identifier.value)
-        else:
-            varget = VariableGet(identifier.value)
-
+        start = None
         prev = None
 
         while True:
@@ -194,8 +184,27 @@ class Parser:
                 prev.next = next_
                 prev = next_
             else:
-                varget.lookup = next_
                 prev = next_
+                start = prev
+        
+        if prev:
+            return LookUpRoot(pre, start)
+        
+        return pre
+
+    def parseVariableGet(self, prec):
+        save_index = self.index
+
+        deref = True if self.tryMatch(TokenType.AMP) else False
+
+        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            self.index = save_index
+            return self.parsePrec(prec + 1)
+        
+        if deref:
+            varget = VariableGetReference(identifier.value)
+        else:
+            varget = VariableGet(identifier.value)
         
         return varget
 
@@ -211,7 +220,7 @@ class Parser:
         if not self.tryMatch(TokenType.OP_MUL):
             return self.parsePrec(prec + 1)
         
-        return Dereference(self.parsePrec(prec + 1))
+        return Dereference(self.parsePrec(self.expression_prec))
 
     def parseFunctionCall(self, prec):
         if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):

@@ -149,6 +149,37 @@ class Typechecker:
         
         op.type = left
         return left
+    
+    def resolveLookUpRoot(self, lur):
+        expr = lur.expr.resolve(self)
+        lur.next.type = expr
+        t = lur.next.resolve(self)
+        lur.type = t
+        return t
+    
+    def resolveStructLookUp(self, slu):
+        t = slu.type.getPropertyType(slu.identifier)
+
+        if slu.next:
+            slu.next.type = t
+            return slu.next.resolve(self)
+        
+        return t
+    
+    def resolveListIndex(self, li):
+        if type(li.type) != PointerType:
+            raise TypeError("Non pointer list")
+
+        expr = li.expr.resolve(self)
+
+        if expr != INT:
+            raise TypeError("Non int index")
+        
+        if li.next:
+            li.next.type = li.type.type
+            return li.next.resolve(self)
+        
+        return li.type.type
 
     def resolveVariableDecl(self, vardecl):
         self.decl(vardecl.name)
