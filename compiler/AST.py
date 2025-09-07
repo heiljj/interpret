@@ -21,6 +21,12 @@ class Value(ASTNode):
     def __str__(self):
         return str(self.value)
 
+class Dereference(ASTNode):
+    def __init__(self, expr):
+        super().__init__()
+        self.expr = expr
+        self.type = None
+
 class Struct(ASTNode):
     def __init__(self, exprs, type_=None):
         super().__init__()

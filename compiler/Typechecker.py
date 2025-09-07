@@ -108,6 +108,15 @@ class Typechecker:
     
     def resolveValue(self, value):
         return value.type
+    
+    def resolveDereference(self, ref):
+        t = ref.expr.resolve(self)
+
+        if type(t) != PointerType:
+            raise TypeError("Deref on non pointer")
+        
+        ref.type = t.type
+        return t.type
 
     def resolveStruct(self, struct):
         types = []
@@ -135,7 +144,7 @@ class Typechecker:
         left = op.left.resolve(self)
         right = op.right.resolve(self)
 
-        if left != right:
+        if left != right and not (type(left) == PointerType and right == INT):
             raise TypeError(f"{left} != {right} on {op}")
         
         op.type = left
@@ -171,6 +180,7 @@ class Typechecker:
         var_type = self.get(varget.name)
 
         if not varget.lookup:
+            varget.type = var_type
             return var_type
         
         last_type = self.walkIndexes(var_type, varget.lookup)

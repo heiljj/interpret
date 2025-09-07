@@ -3,7 +3,7 @@ from Instruction import *
 from Types import *
 from Parser import INT, CHAR, VOID
 from StackManager import StackManager
-from AST import StructLookUp, ListIndex
+from AST import StructLookUp, ListIndex, VariableGet
 
 class Compiler:
     def __init__(self, ast, types):
@@ -133,6 +133,27 @@ class Compiler:
 
         raise NotImplementedError
     
+    def resolveDereference(self, dref):
+        instr = Instructions()
+        words = dref.type.getWords()
+
+        instr += dref.expr.resolve(self)
+        instr += self.pop("t0")
+
+        for _ in range(words):
+            instr += Lw("t1", "t0", 0)
+            instr += Sw("sp", "t1", 0)
+            instr += Addi("sp", "sp", 4)
+            instr += Addi("t0", "t0", 4)
+        
+        self.stack.push(dref.type)
+        
+        instr.commentFirst("dref start")
+        instr.commentLast("dref end")
+        
+        return instr
+
+    
     def resolveStruct(self, struct):
         instr = Instructions()
         for expr in struct.exprs:
@@ -157,68 +178,73 @@ class Compiler:
         instr += op.right.resolve(self)
         instr += self.pop("t1")
         instr += self.pop("t0")
-        
-        op_instr = None
 
         match op.op:
             case TokenType.OP_PLUS:
-                op_instr = Add("t0", "t0", "t1")
+                if type(op.left) == VariableGet and type(op.left.type) == PointerType:
+                        instr += Addi("t2", "x0", op.left.type.getPointedWords() * 4)
+                        instr += Mul("t1", "t1", "t2")
+
+                instr += Add("t0", "t0", "t1")
 
             case TokenType.OP_MINUS:
-                op_instr = Sub("t0", "t0", "t1")
+                if type(op.left) == VariableGet and type(op.left.type) == PointerType:
+                        instr += Addi("t2", "x0", op.left.type.getPointedWords() * 4)
+                        instr += Mul("t1", "t1", "t2")
+
+                instr += Sub("t0", "t0", "t1")
 
             case TokenType.OP_MUL:
-                op_instr = Mul("t0", "t0", "t1")
+                instr += Mul("t0", "t0", "t1")
 
             case TokenType.OP_DIV:
-                op_instr = Div("t0", "t0", "t1")
+                instr += Div("t0", "t0", "t1")
 
             case TokenType.COMP_EQ:
-                op_instr = Instructions(
+                instr += Instructions(
                             Xor("t0", "t0", "t1"),
                             SltiU("t0", "t0", 1))
 
             case TokenType.COMP_NEQ:
-                op_instr = Instructions(
+                instr += Instructions(
                             Xor("t0", "t0", "t1"),
                             SltU("t0", "x0", "t0"))
 
             case TokenType.COMP_GT:
-                op_instr = Instructions(
+                instr += Instructions(
                             Sub("t0", "t0", "t1"),
                             Slt("t0", "x0", "t0"))
 
             case TokenType.COMP_LT:
-                op_instr = Instructions(
+                instr += Instructions(
                             Sub("t0", "t1", "t0"),
                             Slt("t0", "x0", "t0"))
 
             case TokenType.COMP_GT_EQ:
-                op_instr = Instructions(
+                instr += Instructions(
                             Sub("t0", "t1", "t0"),
                             Addi("t1", "x0", 1),
                             Slt("t0", "t0", "t1"))
 
             case TokenType.COMP_LT_EQ:
-                op_instr = Instructions(
+                instr += Instructions(
                             Sub("t0", "t0", "t1"),
                             Addi("t1", "x0", 1),
                             Slt("t0", "t0", "t1"))
             
             case TokenType.OR:
-                op_instr = Instructions(
+                instr += Instructions(
                             Or("t0", "t0", "t1"),
                             SltU("t0", "x0", "t0"))
             
             case TokenType.AND:
-                op_instr = Instructions(
+                instr += Instructions(
                             And("t0", "t0", "t1"),
                             SltU("t0", "x0", "t0"))
 
             case _:
                 raise NotImplementedError
         
-        instr += op_instr
         instr += self.pushReg("t0")
         instr.commentLast("#END binaryop")
 
@@ -278,6 +304,7 @@ class Compiler:
 
         instr += self.pop("t1")
 
+        # TODO use same method as deref
         for _ in range(byte_amount // 4):
             instr += Addi("sp", "sp", -4)
             instr += Lw("t0", "sp", 0)

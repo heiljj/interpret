@@ -49,17 +49,18 @@ class Parser:
             self.defineBinaryOpFunction(TokenType.OP_MUL),      #26
             self.defineBinaryOpFunction(TokenType.OP_DIV),      #27
             self.parseFunctionCall,                             #28
-            self.parseParns,                                    #29
-            # add &
-            self.parseVariableGet,                              #30
-            self.parseValue                                     #31
+            self.parseDereference,                              #29
+            #HERE
+            self.parseParns,                                    #30
+            self.parseVariableGet,                              #31
+            self.parseValue                                     #32
         ]
 
         self.expression_prec = 16
         self.block_prec = 6
         self.function_prec = 2
         self.var_decl_prec = 9
-        self.const_prec = 31
+        self.const_prec = 32
 
         self.ast = self.parsePrec(0)
     
@@ -205,6 +206,12 @@ class Parser:
         expr = self.parsePrec(self.expression_prec)
         self.match(TokenType.PAR_RIGHT)
         return expr
+    
+    def parseDereference(self, prec):
+        if not self.tryMatch(TokenType.OP_MUL):
+            return self.parsePrec(prec + 1)
+        
+        return Dereference(self.parsePrec(prec + 1))
 
     def parseFunctionCall(self, prec):
         if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):

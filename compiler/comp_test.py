@@ -293,7 +293,7 @@ def test_typecheck4():
     buildtest("char a = 'c'; int b = &a;", None)
     buildtest_expect("char a = 'c'; char b = &a;", TypeError)
 
-def test_deref1():
+def test_ref1():
     buildtest("int a = 0; DEBUG &a;", 0)
     buildtest("int a = 0; int b = 0; DEBUG &b;", 4)
     buildtest("""
@@ -319,6 +319,10 @@ def test_deref1():
         int b = 1;
         f();
     """, 8)
+
+def test_dref1():
+    buildtest("int[3] l = [0, 1, 2]; DEBUG *l; DEBUG *(l+1); DEBUG *(l + (1 * 2));", [0, 1, 2])
+    buildtest("struct s {int a1; int a2;}; s[2] l = [{1, 2}, {3, 4}]; DEBUG *l.a1; DEBUG *l.a2; DEBUG *(l+1).a1; DEBUG *(l+1).a2;", [1, 2, 3, 4])
 
 def test_expr_old5():
     buildtest("DEBUG 1 + 2;", 3)
