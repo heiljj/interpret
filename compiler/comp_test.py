@@ -289,6 +289,36 @@ def test_typecheck4():
     buildtest("int[2] a = [1, 2]; int b = a[0]; DEBUG b;", 1)
     buildtest_expect("int[2] a = [1, 2]; char b = a[0]; DEBUG b;", TypeError)
 
+def test_typecheck4():
+    buildtest("char a = 'c'; int b = &a;", None)
+    buildtest_expect("char a = 'c'; char b = &a;", TypeError)
+
+def test_deref1():
+    buildtest("int a = 0; DEBUG &a;", 0)
+    buildtest("int a = 0; int b = 0; DEBUG &b;", 4)
+    buildtest("""
+              struct s {int a1; char a2;};
+              s v1 = {1, "1"};
+              s v2 = {2, "2"};
+              DEBUG &v1.a1;
+              DEBUG &v1.a2;
+              DEBUG &v2.a1;
+              DEBUG &v2.a2;
+              DEBUG &v1;
+              DEBUG &v2;
+              """, [0, 4, 8, 12, 0, 8])
+    
+    # note: ra goes onto stack 
+    buildtest("""
+        int f() {
+            int a = 0;
+            DEBUG &a;
+            return 0;
+        }
+
+        int b = 1;
+        f();
+    """, 8)
 
 def test_expr_old5():
     buildtest("DEBUG 1 + 2;", 3)
