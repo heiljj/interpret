@@ -3,7 +3,7 @@ from Instruction import *
 from Types import *
 from Parser import INT, CHAR, VOID
 from StackManager import StackManager
-from AST import StructLookUp, ListIndex, VariableGet
+from AST import StructLookUp, ListIndex, VariableGet, LookUpRoot
 
 class Compiler:
     def __init__(self, ast, types):
@@ -359,25 +359,22 @@ class Compiler:
         instr.commentLast("eval done")
         instr += lur.next.resolve(self)
         instr.commentLast("addr lu done")
-        # correct here
 
         byte_amount = lur.type.getWords() * 4
-        instr += self.pop("t0") # <-- should be t0?
+        instr += self.pop("t0")
 
         if type(lur.expr.type) != PointerType:
             instr += Addi("sp", "sp", -self.stack.pop())
         
-        # sp=20 (seems good)
         instr.commentLast("stop here")
 
-        for _ in range(byte_amount // 4): #<- copied from wrong place prob
+        for _ in range(byte_amount // 4):
             instr += Lw("t1", "t0", 0)
             instr += Sw("sp", "t1", 0)
             instr += Addi("sp", "sp", 4)
             instr += Addi("t0", "t0", 4)
         
         self.stack.push(lur.type)
-        # self.stack.push(INT)
         return instr
 
     def resolveStructLookUp(self, slu):
@@ -410,20 +407,15 @@ class Compiler:
         return instr
 
     def resolveVariableGetReference(self, vargetref):
-        type_, pos = self.get(vargetref.name)
         instr = Instructions()
-        rel_pos = pos - self.stack.getCurrent()
-
-        # walkIndex expects a value 
-        instr += self.push(rel_pos)
+        type_, pos = self.get(vargetref.name)
+        
+        instr += Addi("t0", "sp", -self.stack.getCurrent())
+        instr += Addi("t0", "t0", pos)
+        instr += self.pushReg("t0")
 
         if vargetref.lookup:
-            walk_instr, _ = self.walkIndexes(type_, vargetref.lookup)
-            instr += walk_instr
-        
-        instr += self.pop("t0")
-        instr += Add("t0", "t0", "sp")
-        instr += self.pushReg("t0")
+            instr += vargetref.lookup.resolve(self)
 
         return instr
 

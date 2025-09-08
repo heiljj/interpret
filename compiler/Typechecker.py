@@ -209,17 +209,15 @@ class Typechecker:
 
     def resolveVariableGet(self, varget):
         var_type = self.get(varget.name)
-
-        if not varget.lookup:
-            varget.type = var_type
-            return var_type
-        
-        last_type = self.walkIndexes(var_type, varget.lookup)
-        varget.type = last_type
-        return last_type
+        varget.type = var_type
+        return var_type
     
     def resolveVariableGetReference(self, vargetref):
-        self.resolveVariableGet(vargetref)
+        t = self.resolveVariableGet(vargetref)
+        if vargetref.lookup:
+            vargetref.lookup.type = t
+            vargetref.lookup.resolve(self)
+
         return INT
     
     def resolveDebug(self, debug):
