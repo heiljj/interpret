@@ -317,22 +317,7 @@ class Compiler:
         type_, pos = self.get(varget.name)
         instr = Instructions()
 
-        if False:
-        # if varget.lookup and type(type_) == PointerType:
-            instr += Lw("t0", "sp", pos - self.stack.getCurrent())
-            instr += Addi("t0", "t0", -self.stack.getCurrent())
-            instr += self.pushReg("t0")
-
-            # index_instr, type_ = self.walkIndexes(type_, varget.lookup)
-            # instr += index_instr
-            # instr.commentFirst("lookup start")
-            # instr.commentLast("lookup end")
-        elif varget.lookup:
-            instr += self.push(pos - self.stack.getCurrent())
-            # index_instr, type_ = self.walkIndexes(type_, varget.lookup)
-            # instr += index_instr
-        else:
-            instr += self.push(pos - self.stack.getCurrent())
+        instr += self.push(pos - self.stack.getCurrent())
 
         byte_amount = type_.getWords() * 4
         instr += self.pop("t1")
@@ -409,20 +394,24 @@ class Compiler:
     def resolveVariableGetReference(self, vargetref):
         instr = Instructions()
         type_, pos = self.get(vargetref.name)
-        
+
+
         instr += Addi("t0", "sp", -self.stack.getCurrent())
         instr += Addi("t0", "t0", pos)
         instr += self.pushReg("t0")
 
         if vargetref.lookup:
             instr += vargetref.lookup.resolve(self)
+        
+        instr.commentFirst("start of ref")
+        instr.commentLast("end of ref")
+
 
         return instr
 
     def resolveDebug(self, debug):
         instr = debug.expr.resolve(self)
         instr += Debug()
-        instr.commentFirst("start debug")
         return instr
     
     def resolveExprStatement(self, exprs):

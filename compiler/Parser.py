@@ -193,20 +193,38 @@ class Parser:
         return pre
 
     def parseVariableGet(self, prec):
-        save_index = self.index
 
-        deref = True if self.tryMatch(TokenType.AMP) else False
+        if self.tryMatch(TokenType.AMP):
+            identifier = self.match(TokenType.IDENTIFIER).value
 
-        if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
-            self.index = save_index
-            return self.parsePrec(prec + 1)
-        
-        if deref:
-            varget = VariableGetReference(identifier.value)
+            start = None
+            prev = None
+
+            while True:
+                if self.tryMatch(TokenType.DOT):
+                    next_ = StructLookUp(self.match(TokenType.IDENTIFIER).value)
+                elif self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
+                    expr = self.parsePrec(self.expression_prec)
+                    self.match(TokenType.SQUARE_BRAC_RIGHT)
+                    next_ = ListIndex(expr)
+                else:
+                    break
+                
+                if prev:
+                    prev.next = next_
+                    prev = next_
+                else:
+                    prev = next_
+                    start = prev
+            
+            return VariableGetReference(identifier, start)
+            
         else:
-            varget = VariableGet(identifier.value)
-        
-        return varget
+            if identifier := self.tryMatch(TokenType.IDENTIFIER):
+                return VariableGet(identifier.value)
+
+            return self.parsePrec(prec + 1)
+            
 
     def parseParns(self, prec):
         if not self.tryMatch(TokenType.PAR_LEFT):
@@ -220,7 +238,7 @@ class Parser:
         if not self.tryMatch(TokenType.OP_MUL):
             return self.parsePrec(prec + 1)
         
-        return Dereference(self.parsePrec(self.expression_prec))
+        return Dereference(self.parsePrec(prec + 1))
 
     def parseFunctionCall(self, prec):
         if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):

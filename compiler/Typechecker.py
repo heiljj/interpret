@@ -218,7 +218,7 @@ class Typechecker:
             vargetref.lookup.type = t
             vargetref.lookup.resolve(self)
 
-        return INT
+        return PointerType(t, 0)
     
     def resolveDebug(self, debug):
         debug.expr.resolve(self)
