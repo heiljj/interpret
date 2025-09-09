@@ -289,8 +289,8 @@ def test_typecheck4():
     buildtest("int[2] a = [1, 2]; int b = a[0]; DEBUG b;", 1)
     buildtest_expect("int[2] a = [1, 2]; char b = a[0]; DEBUG b;", TypeError)
 
-def test_typecheck4():
-    buildtest("char a = 'c'; int b = &a;", None)
+def test_typecheck5():
+    buildtest("char a = 'c'; char* b = &a;", None)
     buildtest_expect("char a = 'c'; char b = &a;", TypeError)
 
 def test_ref1():
@@ -323,6 +323,42 @@ def test_ref1():
 def test_dref1():
     buildtest("int[3] l = [0, 1, 2]; DEBUG *l; DEBUG *(l+1); DEBUG *(l + (1 * 2));", [0, 1, 2])
     buildtest("struct s {int a1; int a2;}; s[2] l = [{1, 2}, {3, 4}]; DEBUG *l.a1; DEBUG *l.a2; DEBUG *(l+1).a1; DEBUG *(l+1).a2;", [1, 2, 3, 4])
+
+def test_dref2():
+    buildtest("""
+        struct s {
+            int a1;
+            int a2;
+        };
+
+        struct s2 {
+            s a1;
+            int a2;
+        };
+
+        s2[2] l = [{{1, 2}, 3}, {{4, 5}, 6}];
+        s v = l[0].a1;
+        DEBUG v.a1;
+        DEBUG v.a2;
+
+        s2* l2;
+        l2 = l;
+        DEBUG l2[0].a2;
+    """, [1, 2, 3])
+
+def test_dref3():
+    buildtest("""
+        struct s {
+            int a1;
+            int a2;
+        };
+
+        int a = 5;
+        s v = {1, 2};
+        s* vref = &v;
+        DEBUG *vref.a1;
+        DEBUG *vref.a2;
+    """, [1, 2])
 
 def test_expr_old5():
     buildtest("DEBUG 1 + 2;", 3)
