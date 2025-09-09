@@ -320,6 +320,21 @@ def test_ref1():
         f();
     """, 8)
 
+def test_ref2():
+    buildtest("""
+        struct s {int a1; char a2;};
+        int a;
+        int b;
+        char c;
+        s d;
+        int e;
+        DEBUG &a;
+        DEBUG &b;
+        DEBUG &c;
+        DEBUG &d;
+        DEBUG &e;
+    """, [0, 4, 8, 12, 20])
+
 def test_dref1():
     buildtest("int[3] l = [0, 1, 2]; DEBUG *l; DEBUG *(l+1); DEBUG *(l + (1 * 2));", [0, 1, 2])
     buildtest("struct s {int a1; int a2;}; s[2] l = [{1, 2}, {3, 4}]; DEBUG *l.a1; DEBUG *l.a2; DEBUG *(l+1).a1; DEBUG *(l+1).a2;", [1, 2, 3, 4])

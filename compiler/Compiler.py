@@ -254,7 +254,7 @@ class Compiler:
         self.bindPosition(vardecl.name, vardecl.type, 0)
         instr = Instructions()
 
-        if type(vardecl.type) == PointerType:
+        if type(vardecl.type) == PointerType and vardecl.type.amount != 0:
             instr += Addi("t0", "sp", 4)
             instr += Sw("sp", "t0", 0)
             instr += Addi("sp", "sp", 4)
@@ -267,7 +267,7 @@ class Compiler:
             instr.commentFirst("varsetanddecl")
             return instr
 
-        if type(vardecl.type) == PointerType:
+        if type(vardecl.type) == PointerType and vardecl.type.amount != 0:
             amount = vardecl.type.getAllocWords()
         else:
             amount = vardecl.type.getWords()
