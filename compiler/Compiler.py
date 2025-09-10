@@ -395,10 +395,14 @@ class Compiler:
         instr = Instructions()
         type_, pos = self.get(vargetref.name)
 
-
-        instr += Addi("t0", "sp", -self.stack.getCurrent())
-        instr += Addi("t0", "t0", pos)
-        instr += self.pushReg("t0")
+        if vargetref.lookup and type(vargetref.lookup) == ListIndex:
+            instr += Lw("t0", "x0", pos)
+            instr += self.pushReg("t0")
+        
+        else:
+            instr += Addi("t0", "sp", -self.stack.getCurrent())
+            instr += Addi("t0", "t0", pos)
+            instr += self.pushReg("t0")
 
         if vargetref.lookup:
             instr += vargetref.lookup.resolve(self)

@@ -191,9 +191,9 @@ def test_fn5():
     """, 30)
 
 def test_struct1():
-    buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; DEBUG v.a1; DEBUG v.a2;', [1, ord("a")])
-    buildtest('struct s {int a1; char a2;}; s v; v = {1, "a"}; DEBUG v.a1; DEBUG v.a2;', [1, ord("a")])
-    buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; s v2 = {2, "b"}; DEBUG v.a1; DEBUG v.a2; DEBUG v2.a1; DEBUG v2.a2;', [1, ord("a"), 2, ord("b")])
+    buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; DEBUG v.a1; DEBUG v.a2;', [1, "a"])
+    buildtest('struct s {int a1; char a2;}; s v; v = {1, "a"}; DEBUG v.a1; DEBUG v.a2;', [1, "a"])
+    buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; s v2 = {2, "b"}; DEBUG v.a1; DEBUG v.a2; DEBUG v2.a1; DEBUG v2.a2;', [1, "a", 2, "b"])
     buildtest('struct s {int a1; char a2;}; s v = {1, "a"}; v.a1 = 1; DEBUG v.a1;', 1)
 
 def test_struct2():
@@ -209,7 +209,7 @@ def test_struct2():
         DEBUG value.a1;
         DEBUG value.a2;
         DEBUG value2.a2;
-    """, [1, ord("a"), 2, 1, ord("a"), ord("b")])
+    """, [1, "a", 2, 1, "a", "b"])
 
     buildtest("""
         struct s {int a1; char a2;};
@@ -218,7 +218,7 @@ def test_struct2():
         s2 value2 = {value, 'b'};
         value2.a2 = 'c';
         DEBUG value2.a2;
-    """, ord("c"))
+    """, "c")
 
     buildtest("""
         struct s {int a1; char a2;};
@@ -230,7 +230,7 @@ def test_struct2():
         DEBUG value2.a1.a2;
         DEBUG value.a1;
         DEBUG value.a2;
-    """, [2, ord("c"), 1, ord("a")])
+    """, [2, "c", 1, "a"])
 
 def test_list1():
     buildtest("int[5] a = [0, 1, 2, 3, 4]; DEBUG a[0]; DEBUG a[1]; DEBUG a[2]; DEBUG a[1 + 2];", [0, 1, 2, 3])
@@ -254,7 +254,7 @@ def test_list2():
     DEBUG l[1].a2;
     DEBUG l[2].a1;
     DEBUG l[2].a2;
-""", [3, ord("c"), 4, ord("d"), 3, ord("c")])
+""", [3, "c", 4, "d", 3, "c"])
 
 
 def test_typecheck1():
@@ -335,6 +335,43 @@ def test_ref2():
         DEBUG &e;
     """, [0, 4, 8, 12, 20])
 
+def test_ref3():
+    buildtest("""
+        struct s {int a1; char a2;};
+        struct s2 {s a1; int a2;};
+        s v = {1, "a"};
+        s2 v2 = {v, 2};
+        DEBUG &v.a1;
+        DEBUG &v.a2;
+        DEBUG &v2.a1.a1;
+        DEBUG &v2.a1.a2;
+        DEBUG &v2.a2;
+    """, [0, 4, 8, 12, 16])
+
+def test_ref4():
+    buildtest("""
+        struct s {int a1; char a2;};
+        s[3] l = [{1, "a"}, {2, "b"}, {3, "c"}];
+        s* l1 = &l[0];
+        s* l2 = &l[1];
+        s* l3 = &l[2];
+        DEBUG l1;
+        DEBUG l2;
+        DEBUG l3;
+        int* l1a1 = &l[0].a1;
+        char* l1a2 = &l[0].a2;
+        int* l2a1 = &l[1].a1;
+        char* l2a2 = &l[1].a2;
+        int* l3a1 = &l[2].a1;
+        char* l3a2 = &l[2].a2;
+        DEBUG l1a1;
+        DEBUG l1a2;
+        DEBUG l2a1;
+        DEBUG l2a2;
+        DEBUG l3a1;
+        DEBUG l3a2;
+    """, [4, 12, 20, 4, 8, 12, 16, 20, 24])
+
 def test_dref1():
     buildtest("int[3] l = [0, 1, 2]; DEBUG *l; DEBUG *(l+1); DEBUG *(l + (1 * 2));", [0, 1, 2])
     buildtest("struct s {int a1; int a2;}; s[2] l = [{1, 2}, {3, 4}]; DEBUG *l.a1; DEBUG *l.a2; DEBUG *(l+1).a1; DEBUG *(l+1).a2;", [1, 2, 3, 4])
@@ -375,6 +412,50 @@ def test_dref3():
         DEBUG *vref.a2;
     """, [1, 2])
 
+def test_dref4():
+    buildtest("""
+        struct s {int a1; char a2;};
+        s[3] l = [{1, "a"}, {2, "b"}, {3, "c"}];
+        int* l1a1 = &l[0].a1;
+        char* l1a2 = &l[0].a2;
+        int* l2a1 = &l[1].a1;
+        char* l2a2 = &l[1].a2;
+        int* l3a1 = &l[2].a1;
+        char* l3a2 = &l[2].a2;
+        DEBUG *l1a1;
+        DEBUG *l1a2;
+        DEBUG *l2a1;
+        DEBUG *l2a2;
+        DEBUG *l3a1;
+        DEBUG *l3a2;
+    """, [1, "a", 2, "b", 3, "c"])
+
+def test_dref5():
+    buildtest("""
+        struct s {int a1; char a2;};
+        struct s2 {s a1; char a2;};
+
+        s2[2] l = [{{1, "a"}, "b"}, {{2, "c"}, "d"}];
+        int* l1a1a1 = &l[0].a1.a1;
+        char* l1a1a2 = &l[0].a1.a2;
+        char* l1a2 = &l[0].a2;
+        int* l2a1a1 = &l[1].a1.a1;
+        char* l2a1a2 = &l[1].a1.a2;
+        char* l2a2 = &l[1].a2;
+        DEBUG l1a1a1;
+        DEBUG l1a1a2;
+        DEBUG l1a2;
+        DEBUG l2a1a1;
+        DEBUG l2a1a2;
+        DEBUG l2a2;
+        DEBUG *l1a1a1;
+        DEBUG *l1a1a2;
+        DEBUG *l1a2;
+        DEBUG *l2a1a1;
+        DEBUG *l2a1a2;
+        DEBUG *l2a2;
+    """, [4, 8, 12, 16, 20, 24, 1, "a", "b", 2, "c", "d"])
+
 def test_expr_old5():
     buildtest("DEBUG 1 + 2;", 3)
 
@@ -413,6 +494,10 @@ def buildtest(code , value):
 
     if type(value) != list:
         value = [value]
+    
+    for i in range(len(value)):
+        if type(value[i]) == str:
+            value[i] = ord(value[i])
 
     tokens = tokenize(code)
     ast, types = parse(tokens)

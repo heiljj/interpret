@@ -174,7 +174,7 @@ class Typechecker:
 
         if expr != INT:
             raise TypeError("Non int index")
-        
+    
         if li.next:
             li.next.type = li.type.type
             return li.next.resolve(self)
@@ -216,7 +216,7 @@ class Typechecker:
         t = self.resolveVariableGet(vargetref)
         if vargetref.lookup:
             vargetref.lookup.type = t
-            vargetref.lookup.resolve(self)
+            t = vargetref.lookup.resolve(self)
 
         return PointerType(t, 0)
     
