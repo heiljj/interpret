@@ -272,7 +272,7 @@ class Compiler:
         else:
             amount = vardecl.type.getWords()
 
-        for _ in range(amount):
+        for _ in range(int(amount)):
             instr += self.push(0)
 
         return instr

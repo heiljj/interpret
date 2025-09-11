@@ -256,6 +256,33 @@ def test_list2():
     DEBUG l[2].a2;
 """, [3, "c", 4, "d", 3, "c"])
 
+def test_list3():
+    buildtest("""
+        int*[2] l;
+        l[0] = [0, 1];
+        l[1] = [2, 3];
+        DEBUG l[0][0];
+        DEBUG l[0][1];
+        DEBUG l[1][0];
+        DEBUG l[1][1];
+    """, [0, 1, 2, 3])
+
+    buildtest("""
+        int*[2] l;
+        l[0] = [0, 1];
+        l[1] = [2, 3];
+
+        l[0][0] = 4;
+        l[0][1] = 5;
+        l[1][0] = 6;
+        l[1][1] = 7;
+
+        DEBUG l[0][0];
+        DEBUG l[0][1];
+        DEBUG l[1][0];
+        DEBUG l[1][1];
+    """, [4, 5, 6, 7])
+
 
 def test_typecheck1():
     buildtest_expect('DEBUG 1 + "1";', TypeError)
@@ -292,6 +319,23 @@ def test_typecheck4():
 def test_typecheck5():
     buildtest("char a = 'c'; char* b = &a;", None)
     buildtest_expect("char a = 'c'; char b = &a;", TypeError)
+
+def test_typecheck6():
+    buildtest_expect("""
+        struct s {int a1; char a2;};
+        struct s2 {s a1; char a2;};
+        s2 v = {{1, "a"}, "b"};
+        s* vp = &v.a1;
+        char a = *vp.a1;
+    """, TypeError)
+
+    buildtest("""
+        struct s {int a1; char a2;};
+        struct s2 {s a1; char a2;};
+        s2 v = {{1, "a"}, "b"};
+        s* vp = &v.a1;
+        int a = *vp.a1;
+    """, None)
 
 def test_ref1():
     buildtest("int a = 0; DEBUG &a;", 0)
@@ -434,7 +478,6 @@ def test_dref5():
     buildtest("""
         struct s {int a1; char a2;};
         struct s2 {s a1; char a2;};
-
         s2[2] l = [{{1, "a"}, "b"}, {{2, "c"}, "d"}];
         int* l1a1a1 = &l[0].a1.a1;
         char* l1a1a2 = &l[0].a1.a2;
@@ -486,7 +529,6 @@ def test_shadow1():
 
 def test_shadow2():
     buildtest("int a = 1; {int a = 2;} DEBUG a;", 1)
-
 
 def buildtest(code , value):
     if value is None:
