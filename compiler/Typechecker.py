@@ -1,5 +1,4 @@
 from Types import *
-from AST import StructLookUp, ListIndex
 from Parser import INT, VOID
 
 from Instruction import *
@@ -78,31 +77,6 @@ class Typechecker:
         
         return self.globals[var]
 
-    def walkIndexes(self, type_, next_):
-        while next_:
-            if type(next_) == StructLookUp:
-                if next_.identifier not in type_.properties:
-                    raise Exception(f"Property {next_.identifier} not a member of struct {type_}")
-                
-                type_ = type_.getPropertyType(next_.identifier)
-            
-            elif type(next_) == ListIndex:
-                if type(type_) != PointerType:
-                    raise Exception("Index on non pointer")
-                
-                if next_.expr.resolve(self) != INT:
-                    raise Exception("Non int index")
-                
-                type_ = type_.type
-
-            else:
-                raise Exception()
-            
-            next_.type = type_
-            next_ = next_.next
-        
-        return type_
-
     def resolveErr(self, err):
         pass
     
@@ -150,75 +124,39 @@ class Typechecker:
         op.type = left
         return left
     
-    def resolveLookUpRoot(self, lur):
-        expr = lur.expr.resolve(self)
-        lur.next.type = expr
-        t = lur.next.resolve(self)
-        lur.type = t
-        return t
-    
     def resolveStructLookUp(self, slu):
-        t = slu.type.getPropertyType(slu.identifier)
+        expr = slu.expr.resolve(self)
+        slu.type = expr
 
-        if slu.next:
-            slu.next.type = t
-            return slu.next.resolve(self)
+        if type(expr) != PointerType:
+            raise TypeError("expected incoming type of struct look up to be a pointer")
         
-        return t
-    
-    def resolveListIndex(self, li):
-        if type(li.type) != PointerType:
-            raise TypeError("Non pointer list")
+        if type(expr.type) != StructType:
+            raise TypeError("expected struct but found pointer")
 
-        expr = li.expr.resolve(self)
-
-        if expr != INT:
-            raise TypeError("Non int index")
-    
-        if li.next:
-            li.next.type = li.type.type
-            return li.next.resolve(self)
-        
-        return li.type.type
+        return PointerType(expr.type.getPropertyType(slu.identifier))
 
     def resolveVariableDecl(self, vardecl):
         self.decl(vardecl.name)
         self.set(vardecl.name, vardecl.type)
 
-        if not vardecl.expr:
-            return
-        
-        actual = vardecl.expr.resolve(self)
-        if not vardecl.type == actual:
-            raise TypeError(f"variable {vardecl.name} of type {vardecl.type} assigned {vardecl.expr}")
+        if vardecl.expr:
+            t = vardecl.expr.resolve(self)
+            if vardecl.type != t:
+                raise TypeError(f"variable {vardecl.name} assigned {vardecl.expr}")
 
     def resolveVariableSet(self, varset):
-        expected_type = self.get(varset.name)
-        actual = varset.expr.resolve(self)
+        addr_expr = varset.addr_expr.resolve(self)
+        value_expr = varset.value_expr.resolve(self)
 
-        if not varset.lookup:
-            if not expected_type == actual:
-                raise TypeError(f"variable {varset.name} of type {expected_type} assigned {varset.expr}")
-
-            return
-        
-        last_type = self.walkIndexes(expected_type, varset.lookup)
-        
-        if not last_type == actual:
-            raise Exception(f"Property {last_type.identifier} not a member of struct {last_type}")
+        if addr_expr != PointerType(value_expr):
+            raise TypeError(f"address {varset.addr_expr} of type {addr_expr} assigned {varset.value_expr} of type {value_expr}")
 
     def resolveVariableGet(self, varget):
         var_type = self.get(varget.name)
+        var_type = PointerType(var_type)
         varget.type = var_type
         return var_type
-    
-    def resolveVariableGetReference(self, vargetref):
-        t = self.resolveVariableGet(vargetref)
-        if vargetref.lookup:
-            vargetref.lookup.type = t
-            t = vargetref.lookup.resolve(self)
-
-        return PointerType(t, 0)
     
     def resolveDebug(self, debug):
         debug.expr.resolve(self)
@@ -284,6 +222,7 @@ class Typechecker:
             if t != decl.argtypes[i]:
                 raise TypeError(f"arg of wrong type, call: {call} arg: {call.args[i]}")
         
+        call.type = decl.type
         return decl.type
     
     def resolveReturn(self, ret):

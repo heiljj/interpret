@@ -3,7 +3,7 @@ from Instruction import *
 from Types import *
 from Parser import INT, CHAR, VOID
 from StackManager import StackManager
-from AST import StructLookUp, ListIndex, VariableGet, LookUpRoot
+from AST import VariableGet
 
 class Compiler:
     def __init__(self, ast, types):
@@ -88,39 +88,6 @@ class Compiler:
                 instructions[i] = Beq("x0", "x0", addr_rel_start - i * 4)
                 instructions[i].comment = instr.comment
 
-    def walkIndexes(self, type_, tree):
-        instr = Instructions()
-
-        while tree:
-            if type(tree) == StructLookUp:
-                offset = 4 * type_.getPropertyOffset(tree.identifier)
-                instr += self.pop("t0")
-                instr += Addi("t0", "t0", offset)
-                instr += self.pushReg("t0")
-
-                type_ = tree.type
-                tree = tree.next
-
-            elif type(tree) == ListIndex:
-                instr += tree.expr.resolve(self)
-                instr += self.pop("t0")
-
-                instr += Addi("t1", "x0", type_.type.getWords() * 4)
-                instr += Mul("t0", "t1", "t0")
-
-                instr += self.pop("t1")
-
-                instr += Add("t0", "t0", "t1")
-                instr += self.pushReg("t0")
-
-                type_ = tree.type
-                tree = tree.next
-
-            else:
-                raise Exception()
-        
-        return instr, type_
-
     def resolveErr(self, err):
         return Instructions(RaiseError())
 
@@ -152,7 +119,6 @@ class Compiler:
         instr.commentLast("dref end")
         
         return instr
-
     
     def resolveStruct(self, struct):
         instr = Instructions()
@@ -174,21 +140,23 @@ class Compiler:
     def resolveBinaryOp(self, op):
         instr = op.left.resolve(self)
         instr.commentFirst(f"#binaryop {op.left} {op.op.name} {op.right}")
+        instr.commentLast("#left binop done")
 
         instr += op.right.resolve(self)
+        instr.commentLast("#right binop done")
         instr += self.pop("t1")
         instr += self.pop("t0")
 
         match op.op:
             case TokenType.OP_PLUS:
-                if type(op.left) == VariableGet and type(op.left.type) == PointerType:
+                if type(op.left.type) == PointerType:
                         instr += Addi("t2", "x0", op.left.type.getPointedWords() * 4)
                         instr += Mul("t1", "t1", "t2")
 
                 instr += Add("t0", "t0", "t1")
 
             case TokenType.OP_MINUS:
-                if type(op.left) == VariableGet and type(op.left.type) == PointerType:
+                if type(op.left.type) == PointerType:
                         instr += Addi("t2", "x0", op.left.type.getPointedWords() * 4)
                         instr += Mul("t1", "t1", "t2")
 
@@ -260,56 +228,37 @@ class Compiler:
             instr += Addi("sp", "sp", 4)
             # TODO change 
             self.stack.push(INT)
-
+        
         if vardecl.expr:
             instr += vardecl.expr.resolve(self)
-            instr.commentLast("END varsetanddecl")
-            instr.commentFirst("varsetanddecl")
-            return instr
-
-        if type(vardecl.type) == PointerType and vardecl.type.amount != 0:
-            amount = vardecl.type.getAllocWords()
         else:
-            amount = vardecl.type.getWords()
+            amount = vardecl.type.getAllocWords()
 
-        for _ in range(int(amount)):
-            instr += self.push(0)
+            for _ in range(amount):
+                instr += self.push(0)
 
+        instr.commentLast("decl end")
         return instr
     
     def resolveVariableSet(self, varset):
-        instr = varset.expr.resolve(self)
-        instr.commentFirst(f"#{varset.name} = {varset.expr}")
+        instr = Instructions()
 
-        type_, pos = self.get(varset.name)
-        current = self.stack.getCurrent()
-        stack_diff = current - pos
+        instr += varset.value_expr.resolve(self)
 
-        byte_amount = self.stack.pop()
-
-        if varset.lookup and type(type_) == PointerType:
-            instr += Lw("t0", "sp", pos - current)
-            instr += Addi("t0", "t0", - current)
-            instr += Addi("t0", "t0", byte_amount)
-
-            instr += self.pushReg("t0")
-            index_instr, _ = self.walkIndexes(type_, varset.lookup)
-            instr += index_instr
-        elif varset.lookup:
-            instr += self.push(byte_amount - stack_diff)
-            index_instr, _ = self.walkIndexes(type_, varset.lookup)
-            instr += index_instr
-        else:
-            instr += self.push(byte_amount - stack_diff)
+        instr += varset.addr_expr.resolve(self)
+        instr.commentFirst(f"#{varset.addr_expr} = {varset.value_expr}")
+        instr.commentLast("#stack set up")
 
         instr += self.pop("t1")
+        byte_amount = self.stack.pop()
+        instr += Addi("t1", "t1", byte_amount-4)
 
         # TODO use same method as deref
         for _ in range(byte_amount // 4):
             instr += Addi("sp", "sp", -4)
             instr += Lw("t0", "sp", 0)
-            instr += Add("t2", "t1", "sp")
-            instr += Sw("t2", "t0", 0)
+            instr += Sw("t1", "t0", 0)
+            instr += Addi("t1", "t1", -4)
         
         return instr
 
@@ -317,99 +266,25 @@ class Compiler:
         type_, pos = self.get(varget.name)
         instr = Instructions()
 
-        instr += self.push(pos - self.stack.getCurrent())
+        # TODO need ot use rel sp
+        instr += Addi("t0", "sp", pos-self.stack.getCurrent())
+        instr += self.pushReg("t0")
 
-        byte_amount = type_.getWords() * 4
-        instr += self.pop("t1")
+        instr.commentFirst("varget start")
+        instr.commentLast("vargetend")
 
-        for _ in range(byte_amount // 4):
-            instr += Add("t0", "sp", "t1")
-            instr += Lw("t0", "t0", 0)
-            instr += Sw("sp", "t0", 0)
-            instr += Addi("sp", "sp", 4)
-        
-        self.stack.push(type_)
-        # instr.commentFirst(f"varget {varget.name}")
-        instr.commentLast(f"END varget")
+
         return instr
     
-    def resolveLookUpRoot(self, lur):
-        instr = Instructions()
-        instr += lur.expr.resolve(self)
-
-        if type(lur.expr.type) != PointerType:
-            instr += Addi("t0", "sp", -4 * lur.expr.type.getWords())
-            instr += self.pushReg("t0")
-
-        instr.commentLast("eval done")
-        instr += lur.next.resolve(self)
-        instr.commentLast("addr lu done")
-
-        byte_amount = lur.type.getWords() * 4
-        instr += self.pop("t0")
-
-        if type(lur.expr.type) != PointerType:
-            instr += Addi("sp", "sp", -self.stack.pop())
-        
-        instr.commentLast("stop here")
-
-        for _ in range(byte_amount // 4):
-            instr += Lw("t1", "t0", 0)
-            instr += Sw("sp", "t1", 0)
-            instr += Addi("sp", "sp", 4)
-            instr += Addi("t0", "t0", 4)
-        
-        self.stack.push(lur.type)
-        return instr
-
     def resolveStructLookUp(self, slu):
-        instr = Instructions()
+        instr = slu.expr.resolve(self)
+
         instr += self.pop("t0")
-        instr += Addi("t0", "t0", 4 * slu.type.getPropertyOffset(slu.identifier))
+        instr += Addi("t0", "t0", 4 * slu.type.type.getPropertyOffset(slu.identifier))
         instr += self.pushReg("t0")
 
-        if slu.next:
-            instr += slu.next.resolve(self)
-        
-        return instr
-
-
-    def resolveListIndex(self, li):
-        instr = Instructions()
-        instr += li.expr.resolve(self)
-
-        instr += self.pop("t1") 
-        instr += self.pop("t0") # ref
-
-        instr += Addi("t2", "x0", li.type.type.getWords() * 4)
-        instr += Mul("t1", "t1", "t2")
-        instr += Add("t0", "t0", "t1")
-        instr += self.pushReg("t0")
-
-        if li.next:
-            instr += li.next.resolve(self)
-        
-        return instr
-
-    def resolveVariableGetReference(self, vargetref):
-        instr = Instructions()
-        type_, pos = self.get(vargetref.name)
-
-        if vargetref.lookup and type(vargetref.lookup) == ListIndex:
-            instr += Lw("t0", "x0", pos)
-            instr += self.pushReg("t0")
-        
-        else:
-            instr += Addi("t0", "sp", -self.stack.getCurrent())
-            instr += Addi("t0", "t0", pos)
-            instr += self.pushReg("t0")
-
-        if vargetref.lookup:
-            instr += vargetref.lookup.resolve(self)
-        
-        instr.commentFirst("start of ref")
-        instr.commentLast("end of ref")
-
+        instr.commentFirst("slu start")
+        instr.commentLast("slu done")
 
         return instr
 

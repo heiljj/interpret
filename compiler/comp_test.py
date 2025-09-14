@@ -237,6 +237,7 @@ def test_list1():
     buildtest("int[5] a = [0, 1, 2, 3, 4, 5]; DEBUG a[a[1] + a[2]];", 3)
     buildtest("int[5] a = [0, 1, 2, 3, 4, 5]; a[0] = 1; a[1] = 2; a[2] = 3; DEBUG a[0]; DEBUG a[1]; DEBUG a[2];", [1, 2, 3])
 
+
 def test_list2():
     buildtest("""
     struct s {
@@ -259,8 +260,12 @@ def test_list2():
 def test_list3():
     buildtest("""
         int*[2] l;
-        l[0] = [0, 1];
-        l[1] = [2, 3];
+
+        int[2] a = [0, 1];
+        l[0] = a;
+        int[2] b = [2, 3];
+        l[1] = b;
+
         DEBUG l[0][0];
         DEBUG l[0][1];
         DEBUG l[1][0];
@@ -269,8 +274,11 @@ def test_list3():
 
     buildtest("""
         int*[2] l;
-        l[0] = [0, 1];
-        l[1] = [2, 3];
+
+        int[2] a = [0, 1];
+        l[0] = a;
+        int[2] b = [2, 3];
+        l[1] = b;
 
         l[0][0] = 4;
         l[0][1] = 5;
@@ -281,7 +289,11 @@ def test_list3():
         DEBUG l[0][1];
         DEBUG l[1][0];
         DEBUG l[1][1];
-    """, [4, 5, 6, 7])
+        DEBUG a[0];
+        DEBUG a[1];
+        DEBUG b[0];
+        DEBUG b[1];
+    """, [4, 5, 6, 7, 4, 5, 6, 7])
 
 
 def test_typecheck1():
@@ -334,7 +346,7 @@ def test_typecheck6():
         struct s2 {s a1; char a2;};
         s2 v = {{1, "a"}, "b"};
         s* vp = &v.a1;
-        int a = *vp.a1;
+        s a = *vp;
     """, None)
 
 def test_ref1():
@@ -418,7 +430,7 @@ def test_ref4():
 
 def test_dref1():
     buildtest("int[3] l = [0, 1, 2]; DEBUG *l; DEBUG *(l+1); DEBUG *(l + (1 * 2));", [0, 1, 2])
-    buildtest("struct s {int a1; int a2;}; s[2] l = [{1, 2}, {3, 4}]; DEBUG *l.a1; DEBUG *l.a2; DEBUG *(l+1).a1; DEBUG *(l+1).a2;", [1, 2, 3, 4])
+    buildtest("struct s {int a1; int a2;}; s[2] l = [{1, 2}, {3, 4}]; s lr = *l; DEBUG lr.a1; DEBUG lr.a2; lr = *(l+1); DEBUG lr.a1; DEBUG lr.a2;", [1, 2, 3, 4])
 
 def test_dref2():
     buildtest("""
@@ -452,8 +464,9 @@ def test_dref3():
         int a = 5;
         s v = {1, 2};
         s* vref = &v;
-        DEBUG *vref.a1;
-        DEBUG *vref.a2;
+        s v1 = *vref;
+        DEBUG v1.a1;
+        DEBUG v1.a2;
     """, [1, 2])
 
 def test_dref4():

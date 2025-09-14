@@ -48,19 +48,18 @@ class Parser:
             self.defineBinaryOpFunction(TokenType.OP_MINUS),    #25
             self.defineBinaryOpFunction(TokenType.OP_MUL),      #26
             self.defineBinaryOpFunction(TokenType.OP_DIV),      #27
-            self.parseIndexes,                                  #28
-            self.parseDereference,                              #29
-            self.parseFunctionCall,                             #30
-            self.parseParns,                                    #31
-            self.parseVariableGet,                              #32
-            self.parseValue                                     #33
+            self.parseDereference,                              #28
+            self.parseFunctionCall,                             #29
+            self.parseParns,                                    #30
+            self.parseVariableGet,                              #31
+            self.parseValue                                     #32
         ]
 
         self.expression_prec = 16
         self.block_prec = 6
         self.function_prec = 2
         self.var_decl_prec = 9
-        self.const_prec = 33
+        self.const_prec = 32
 
         self.ast = self.parsePrec(0)
     
@@ -163,68 +162,50 @@ class Parser:
 
             case _:
                 raise Exception("Unknown value token")
+
+    def parseLookup(self, prev):
+
+        lu = None
+
+        if (self.tryMatch(TokenType.SQUARE_BRAC_LEFT)):
+            expr = self.parsePrec(self.expression_prec)
+            self.match(TokenType.SQUARE_BRAC_RIGHT)
+
+            lu = BinaryOp(Dereference(prev), TokenType.OP_PLUS, expr)
+        
+        elif (self.tryMatch(TokenType.DOT)):
+            identifier = self.match(TokenType.IDENTIFIER).value
+
+            lu = StructLookUp(identifier, prev)
+        
+        if lu:
+            return self.parseLookup(lu)
+        
+        return prev
     
-    def parseIndexes(self, prec):
-        pre = self.parsePrec(prec + 1)
-
-        start = None
-        prev = None
-
-        while True:
-            if self.tryMatch(TokenType.DOT):
-                next_ = StructLookUp(self.match(TokenType.IDENTIFIER).value)
-            elif self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
-                expr = self.parsePrec(self.expression_prec)
-                self.match(TokenType.SQUARE_BRAC_RIGHT)
-                next_ = ListIndex(expr)
-            else:
-                break
-            
-            if prev:
-                prev.next = next_
-                prev = next_
-            else:
-                prev = next_
-                start = prev
-        
-        if prev:
-            return LookUpRoot(pre, start)
-        
-        return pre
-
     def parseVariableGet(self, prec):
+        lu = None
+        dref = None
 
         if self.tryMatch(TokenType.AMP):
             identifier = self.match(TokenType.IDENTIFIER).value
+            lu = VariableGet(identifier)
+            dref = False
 
-            start = None
-            prev = None
-
-            while True:
-                if self.tryMatch(TokenType.DOT):
-                    next_ = StructLookUp(self.match(TokenType.IDENTIFIER).value)
-                elif self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
-                    expr = self.parsePrec(self.expression_prec)
-                    self.match(TokenType.SQUARE_BRAC_RIGHT)
-                    next_ = ListIndex(expr)
-                else:
-                    break
-                
-                if prev:
-                    prev.next = next_
-                    prev = next_
-                else:
-                    prev = next_
-                    start = prev
-            
-            return VariableGetReference(identifier, start)
-            
-        else:
-            if identifier := self.tryMatch(TokenType.IDENTIFIER):
-                return VariableGet(identifier.value)
-
+        elif (identifier := self.tryMatch(TokenType.IDENTIFIER)):
+            identifier = identifier.value
+            lu = VariableGet(identifier)
+            dref = True
+        
+        if not lu:
             return self.parsePrec(prec + 1)
-            
+        
+        lu = self.parseLookup(lu)
+
+        if dref:
+            lu = Dereference(lu)
+        
+        return lu
 
     def parseParns(self, prec):
         if not self.tryMatch(TokenType.PAR_LEFT):
@@ -238,7 +219,13 @@ class Parser:
         if not self.tryMatch(TokenType.OP_MUL):
             return self.parsePrec(prec + 1)
         
-        return Dereference(self.parsePrec(prec + 1))
+        expr = Dereference(self.parsePrec(self.expression_prec))
+        expr = self.parseLookup(expr)
+
+        if type(expr) != Dereference:
+            expr = Dereference(expr)
+
+        return expr
 
     def parseFunctionCall(self, prec):
         if not (identifier := self.tryMatch(TokenType.IDENTIFIER)):
@@ -333,33 +320,19 @@ class Parser:
         saved_index = self.index
         if not (token := self.tryMatch(TokenType.IDENTIFIER)):
             return self.parsePrec(prec + 1)
+        
+        identifier = token.value
 
-        first = None
-        prev = None
-
-        while True:
-            if self.tryMatch(TokenType.DOT):
-                next_ = StructLookUp(self.match(TokenType.IDENTIFIER).value)
-            elif self.tryMatch(TokenType.SQUARE_BRAC_LEFT):
-                expr = self.parsePrec(self.expression_prec)
-                self.match(TokenType.SQUARE_BRAC_RIGHT)
-                next_ = ListIndex(expr)
-            else:
-                break
-            
-            if prev:
-                prev.next = next_
-                prev = next_
-            else:
-                prev = next_
-                first = prev
+        addr = VariableGet(identifier)
+        addr = self.parseLookup(addr)
 
         if not self.tryMatch(TokenType.DECL_EQ):
             self.index = saved_index
             return self.parsePrec(prec + 1)
-        
-        expr = self.parsePrec(self.expression_prec)
-        return VariableSet(token.value, expr, first)
+
+        value = self.parsePrec(self.expression_prec)
+
+        return VariableSet(addr, value)
 
     def parseVarDecl(self, prec):
         saved_index = self.index

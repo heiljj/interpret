@@ -2,7 +2,7 @@ from Tokenizer import reverse_token_map
 
 class ASTNode:
     def __init__(self):
-        pass
+        self.type = None
 
     def resolve(self, visitor):
         attr = visitor.__getattribute__(f"resolve{type(self).__name__}")
@@ -25,13 +25,11 @@ class Dereference(ASTNode):
     def __init__(self, expr):
         super().__init__()
         self.expr = expr
-        self.type = None
 
 class Struct(ASTNode):
-    def __init__(self, exprs, type_=None):
+    def __init__(self, exprs):
         super().__init__()
         self.exprs = exprs
-        self.type = type_
 
 class List(ASTNode):
     def __init__(self, exprs):
@@ -41,26 +39,11 @@ class List(ASTNode):
     def __str__(self):
         return str(self.exprs)
 
-class LookUpRoot(ASTNode):
-    def __init__(self, expr, next_):
-        super().__init__()
-        self.expr = expr
-        self.next = next_
-        self.type = None
-
 class StructLookUp(ASTNode):
-    def __init__(self, identifier, next_=None, type_=None):
+    def __init__(self, identifier, expr=None):
         super().__init__()
         self.identifier = identifier
-        self.next = next_
-        self.type = type_
-
-class ListIndex(ASTNode):
-    def __init__(self, expr, next_=None, type_=None):
-        super().__init__()
         self.expr = expr
-        self.next = next_
-        self.type = type_
 
 class BinaryOp(ASTNode):
     def __init__(self, left, op, right):
@@ -83,28 +66,21 @@ class VariableDecl(ASTNode):
         return f"var {self.name} = {self.expr};"
 
 class VariableSet(ASTNode):
-    def __init__(self, name, expr, lookup=None):
+    def __init__(self, addr_expr, value_expr):
         super().__init__()
-        self.name = name
-        self.expr = expr
-        self.lookup = lookup
+        self.addr_expr = addr_expr
+        self.value_expr = value_expr
     
     def __str__(self):
         return f"{self.name} = {self.expr};"
 
 class VariableGet(ASTNode):
-    def __init__(self, name, lookup=None, type_=None):
+    def __init__(self, name):
         super().__init__()
         self.name = name
-        self.lookup = lookup
-        self.type = type_
     
     def __str__(self):
         return self.name 
-
-class VariableGetReference(VariableGet):
-    def __init__(self, name, lookup=None, type_=None):
-        super().__init__(name, lookup, type_)
 
 class Debug(ASTNode):
     def __init__(self, expr):

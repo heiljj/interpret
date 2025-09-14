@@ -11,6 +11,9 @@ class BaseType:
     
     def getWords(self):
         return self.words
+    
+    def getAllocWords(self):
+        return self.words
 
 class PointerType(BaseType):
     def __init__(self, type_, amount=0):
@@ -22,7 +25,11 @@ class PointerType(BaseType):
         return 1
     
     def getAllocWords(self):
-        return self.type.getWords() * self.amount
+        if self.amount:
+            return int(self.type.getWords() * self.amount)
+        
+        return 1
+
     
     def getPointedWords(self):
         return self.type.getWords()
