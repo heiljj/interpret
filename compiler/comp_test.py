@@ -428,6 +428,14 @@ def test_ref4():
         DEBUG l3a2;
     """, [4, 12, 20, 4, 8, 12, 16, 20, 24])
 
+def test_ref5():
+    buildtest("""
+        int a = 0;
+        int* ap = &a;
+        *ap = 4;
+        DEBUG a;
+    """, 4)
+
 def test_dref1():
     buildtest("int[3] l = [0, 1, 2]; DEBUG *l; DEBUG *(l+1); DEBUG *(l + (1 * 2));", [0, 1, 2])
     buildtest("struct s {int a1; int a2;}; s[2] l = [{1, 2}, {3, 4}]; s lr = *l; DEBUG lr.a1; DEBUG lr.a2; lr = *(l+1); DEBUG lr.a1; DEBUG lr.a2;", [1, 2, 3, 4])

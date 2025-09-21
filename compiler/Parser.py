@@ -318,14 +318,26 @@ class Parser:
 
     def parseVarSet(self, prec):
         saved_index = self.index
-        if not (token := self.tryMatch(TokenType.IDENTIFIER)):
+
+        # this is pretty messy, but it could still be a debug statement,
+        # so if we just call parse with expr prec it would error
+        # deref = bool(self.tryMatch(TokenType.OP_MUL))
+
+        dref = self.tryMatch(TokenType.OP_MUL)
+
+        if (token := self.tryMatch(TokenType.IDENTIFIER)):
+            addr = VariableGet(token.value)
+            addr = self.parseLookup(addr)
+        elif self.tryMatch(TokenType.PAR_LEFT):
+            self.previous()
+            addr = self.parsePrec(self.expression_prec)
+        else:
+            self.index = saved_index
             return self.parsePrec(prec + 1)
         
-        identifier = token.value
-
-        addr = VariableGet(identifier)
-        addr = self.parseLookup(addr)
-
+        if dref:
+            addr = Dereference(addr)
+        
         if not self.tryMatch(TokenType.DECL_EQ):
             self.index = saved_index
             return self.parsePrec(prec + 1)
